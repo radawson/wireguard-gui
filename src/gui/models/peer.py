@@ -1,10 +1,7 @@
 from .database import db
-from flask_marshmallow import Marshmallow
 import json
 
 from wireguard_tools import WireguardKey
-
-ma = Marshmallow()
 
 
 # Create models
@@ -13,13 +10,13 @@ class Peer(db.Model):
     name = db.Column(db.String(50))
     private_key = db.Column(db.String(50))
     endpoint_host = db.Column(db.String(50))
+    listen_port = db.Column(db.Integer)
     network_ip = db.Column(
         db.String(50)
     )  # This is the IP address of the peer without subnet
     subnet = db.Column(
         db.Integer, default=32
     )  # This is the subnet for the Peer network IP
-    listen_port = db.Column(db.Integer)
     lighthouse = db.Column(db.Boolean, default=False)  # Is this a lighthouse peer?
     dns = db.Column(
         db.String(50)
@@ -40,12 +37,12 @@ class Peer(db.Model):
         for peer in j_config:
             wg_config = f"[Peer]\nPublicKey = {peer['public_key']}\n"
             allowed_ips = peer["allowed_ips"]
-            if len(allowed_ips) > 0:
-                wg_config += f"AllowedIPs = {peer['allowed_ips']}\n"
             if peer["endpoint_host"]:
                 wg_config += (
                     f"Endpoint = {peer['endpoint_host']}:{peer['endpoint_port']}\n"
                 )
+            if len(allowed_ips) > 0:
+                wg_config += f"AllowedIPs = {peer['allowed_ips']}\n"
             if peer["persistent_keepalive"]:
                 wg_config += f"PersistentKeepalive = {peer['persistent_keepalive']}\n"
             if peer["preshared_key"]:
@@ -61,31 +58,9 @@ class Peer(db.Model):
     def is_lighthouse(self):
         return self.lighthouse
 
-
-# JSON Schema
-class PeerSchema(ma.Schema):
-    class Meta:
-        fields = (
-            "id",
-            "name",
-            "private_key",
-            "endpoint_host",
-            "network_ip",
-            "subnet",
-            "listen_port",
-            "lighthouse",
-            "dns",
-            "peers_list",
-            "network",
-            "description",
-            "post_up",
-            "post_down",
-            "active",
-        )
-
-
-peer_schema = PeerSchema()
-peers_schema = PeerSchema(many=True)
+    def to_dict(self):
+        dict_ = {c.name: getattr(self, c.name) for c in self.__table__.columns}
+        return dict_
 
 
 def peer_load_test_db():
@@ -187,6 +162,7 @@ def peer_load_test_db():
             "description": "Auto-generated peer for the lighthouse",
         },
     ]
+
     for peer in peer_list:
         peer["peers_list"] = json.dumps(peer["peers_list"])
     db.session.bulk_insert_mappings(Peer, peer_list)

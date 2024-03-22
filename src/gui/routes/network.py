@@ -1,7 +1,7 @@
 import traceback
-from flask import Blueprint, current_app, flash, render_template, request
+from flask import Blueprint, current_app, flash, jsonify, render_template, request
 from flask_login import login_required
-from gui.models import db, Network, subnets
+from gui.models import db, Network, Peer, subnets
 from gui.routes import helpers
 import json
 
@@ -9,6 +9,18 @@ networks = Blueprint("networks", __name__, url_prefix="/networks")
 
 
 ## FUNCTIONS ##
+def add_network(network, sudo_password):
+    # Add a new network to the running server
+    network_cmd = f"wg set {network.adapter_name} network {network.get_public_key()} allowed-ips {network.address}/{network.subnet}"
+    print(f"Add Network: {network_cmd}")
+    try:
+        helpers.run_sudo(network_cmd, sudo_password)
+    except Exception as e:
+        print(e)
+        return False
+    else:
+        return True
+
 def query_all_networks():
     network_query = Network.query.all()
     # TODO: create a more robust error handling system
@@ -27,6 +39,21 @@ def query_all_networks():
 
     return network_query
 
+def remove_network(network, sudo_password):
+    # Remove a network from the running server
+    network_cmd = f"wg set {network.adapter_name} network {network.get_public_key()} remove"
+    print(f"Remove Network: {network_cmd}")
+    try:
+        helpers.run_sudo(network_cmd, sudo_password)
+    except Exception as e:
+        print(e)
+        return False
+    else:
+        return True
+    
+def update_network(network):
+    # Update a network on the running server
+    return False
 
 ## ROUTES ##
 @networks.route("/", methods=["GET"])
@@ -82,28 +109,25 @@ def network_detail(network_id):
 @networks.route("/add", methods=["GET", "POST"])
 @login_required
 def networks_add():
-    new_network = {}
-    new_network["public_key"] = ""
-    new_network["name"] = 1
     lighthouses = helpers.get_lighthouses()
     adapters = helpers.get_adapter_names()
     if request.method == "POST":
+        lighthouse = Peer()
         name = request.form.get("name")
-        # lighthouse is the object in lighthouses with the id from request.form.get("lighthouse")
-        lighthouse = next(
-            (item for item in lighthouses if item.id == int(request.form.get("lighthouse"))),
-            None,
-        )
-        
-        lh_ip = lighthouse.endpoint_host
-        lh_port = lighthouse.listen_port
-        public_key = lighthouse.get_public_key()
+        message = f"Adding network {name}\n"
+        if request.form.get("lighthouse"):
+            message += f"Lighthouse selected: {request.form.get('lighthouse')}\n"
+            lighthouse = Peer.query.get(request.form.get("lighthouse"))        
+            private_key = lighthouse.private_key
+        else:
+            message += "No lighthouse selected"
+            lighthouse.id = 0
+            private_key = request.form.get("private_key")
         base_ip = request.form.get("base_ip")
         subnet = request.form.get("subnet")
         dns = request.form.get("dns")
         description = request.form.get("description")
         allowed_ips = request.form.get("allowed_ips")
-        config = request.form.get("config")
         adapter_name = request.form.get("adapter_name")
 
         # Create a new network object
@@ -113,33 +137,25 @@ def networks_add():
             proxy=False,
             lighthouse=lighthouse.id,
             adapter_name=adapter_name,
-            public_key=public_key,
+            private_key=private_key,
             peers_list="",
             base_ip=base_ip,
             subnet=subnet,
             dns_server=dns,
             description=description,
             allowed_ips=allowed_ips,
-            config=json.dumps(
-                {
-                    "public_key": public_key,
-                    "endpoint_host": lh_ip,
-                    "endpoint_port": lh_port,
-                    "preshared_key": None,
-                    "persistent_keepalive": current_app.config["BASE_KEEPALIVE"],
-                    "allowed_ips": allowed_ips,
-                }
-            ),
-        )
+            )
+        
         if request.form.get('adapter_name'):
             new_network.adapter_name = request.form.get('adapter_name')
         db.session.add(new_network)
         db.session.commit()
-        message = "Network added successfully"
+        message += "Network added successfully"
         network_list = query_all_networks()
         flash(message, "success")
         return render_template("networks.html",  networks=network_list)
     else:
+        new_network = {'id':0, 'public_key':'', 'name': ''}
         return render_template(
             "network_detail.html",
             network=new_network,
@@ -148,6 +164,39 @@ def networks_add():
             adapters=adapters,
             s_button="Add",
         )
+    
+@networks.route("/update/<int:network_id>", methods=["POST"])
+@login_required
+def network_update(network_id):
+    network_list = query_all_networks()
+    message = f"Updating network {network_id}"
+    network = Network.query.get(network_id)
+    lh = Peer.query.get(network.lighthouse)
+    sudo_password = current_app.config["SUDO_PASSWORD"]
+    network.name = request.form.get("name")
+    network.proxy = request.form.get("proxy")
+    network.lighthouse = request.form.get("lighthouse")
+    network.public_key = request.form.get("public_key")
+    network.peers_list = request.form.get("peers_list")
+    network.base_ip = request.form.get("base_ip")
+    network.subnet = request.form.get("subnet")
+    network.dns_server = request.form.get("dns")
+    network.description = request.form.get("description")
+    network.persistent_keepalive = request.form.get("persistent_keepalive")
+    network.adapter_name = request.form.get("adapter_name")
+    network.allowed_ips = request.form.get("allowed_ips")
+
+    # Add peer to running server
+    if current_app.config["MODE"] == "server":
+        pass
+        message += "\nError updating peer on running server"
+    else:
+        db.session.commit()
+        message += "\nNetwork updated in database"
+
+    print(message)
+    flash(message, "success")
+    return render_template("networks.html", network_list=network_list)
 
 
 @networks.route("/delete/<int:network_id>", methods=["POST"])
@@ -212,3 +261,47 @@ def network_deactivate(network_id):
     finally:
         network_list = query_all_networks()
         return render_template("networks.html", networks=network_list)
+
+@networks.route("/api/<int:network_id>", methods=["POST","GET", "PATCH", "DELETE"])
+@login_required
+def network_api(network_id):
+    if request.method == "GET":
+        if network_id == 0:
+            return jsonify([network.to_dict() for network in Network.query.all()])
+        return jsonify(Network.query.get(network_id).to_dict())
+    elif request.method == "POST":
+        return add_network(network_id)
+    elif request.method == "PATCH":
+        message = f"Updating network {network_id}\n"
+        network = Network.query.get(network_id)
+        # logic to update network
+        # If server
+        if current_app.config["MODE"] == "server":
+            if update_network(network):
+                message += "Network updated on server\n"
+            else:
+                message += "Error updating network on server\n"
+        # If database
+        for key, value in request.json.items():
+            setattr(network, key, value)
+        db.session.commit()
+        message += "Network updated in database"
+        flash(message, "success")
+        return jsonify(network)
+    elif request.method == "DELETE":
+        message = f"Deleting network {network_id}\n"
+        network = Network.query.get(network_id)
+        # If server
+        if current_app.config["MODE"] == "server":
+            if remove_network(network_id):
+                message += "Network removed from server\n"
+            else:
+                message += "Error removing network from server\n"
+        # If database
+        db.session.delete(network)
+        db.session.commit()
+        message += "Network removed from database"
+        flash(message, "success")
+        return jsonify(message)
+    else:
+        return jsonify("Invalid request method")
