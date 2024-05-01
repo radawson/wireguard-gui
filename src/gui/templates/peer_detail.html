@@ -33,7 +33,7 @@
                                 <div class="form-outline">
                                     <div class="mb-3 input-group" data-mdb-input-init>
                                         <input type="text" class="form-control" id="private_key" name="private_key"
-                                            value="{{ peer.private_key }}" oninput="updatePublicKey()"/>
+                                            value="{{ peer.private_key }}" oninput="updatePublicKey()" />
                                         <label for="private_key" class="form-label">Private Key</label>
                                         <button class="btn btn-primary " data-mdb-ripple-init type="button"
                                             id="generatePrivateKey" onclick="generateAndSetPrivateKey()"
@@ -44,14 +44,23 @@
                                 </div>
                                 <div class="mb-3 form-outline" data-mdb-input-init>
                                     <input type="text" class="form-control" id="public_key" name="public_key"
-                                        value="{{ peer.public_key }}" readonly/>
+                                        value="{{ peer.public_key }}" readonly />
                                     <label for="public_key" class="form-label">Public Key</label>
                                 </div>
-                                <div class="mb-3 form-outline" data-mdb-input-init>
+
+                                <div class="mb-3 form-outline">
+                                    <select class="form-select" data-mdb-select-init name="network_ip" id="network_ip"
+                                        onchange="updateConfigCard()">
+
+                                    </select>
+                                    <label for="network_ip" class="form-label select-label">VPN IP</label>
+                                </div>
+
+                                <!-- <div class="mb-3 form-outline" data-mdb-input-init>
                                     <input type="text" class="form-control" id="network_ip" name="network_ip"
                                         value="{{ peer.network_ip }}" onchange="updateConfigCard()">
                                     <label for="network_ip" class="form-label">VPN IP</label>
-                                </div>
+                                </div> -->
                                 <div class="mb-3 form-outline" data-mdb-input-init>
                                     <input type="text" class="form-control" id="endpoint_ip" name="endpoint_ip"
                                         value="{{ peer.endpoint_host }}" onchange="updateConfigCard()">
@@ -80,8 +89,7 @@
                                 </div>
                                 {% endif %}
                                 <div class="form-outline">
-                                    <select class="form-select" data-mdb-select-init name="network" id="network"
-                                        onchange="updateConfigCard()">
+                                    <select class="form-select" data-mdb-select-init name="network" id="network">
                                         {% for network in networks %}
                                         <option value="{{ network.id }}" {% if network.id==peer.network %}selected{%
                                             endif %}>
@@ -91,6 +99,31 @@
                                     </select>
                                     <label for="network" class="form-label select-label">Network</label>
                                 </div>
+                                <hr class="hr" />
+
+                                <div class="d-flex peer-psk-row">
+                                    <div class="mb-3 me-2 form-outline" data-mdb-input-init>
+                                        <input type="text" class="form-control" id="peer1" name="peer"
+                                            value="Lighthouse">
+                                        <label for="peer1" class="form-label">Peer</label>
+                                    </div>
+                                    <div class="form-outline">
+                                        <div class="mb-3 ms-2 input-group" data-mdb-input-init>
+                                            <input type="text" class="form-control" id="preshared_key1"
+                                                name="preshared_key" value="{{ peer.preshared_key }}"
+                                                onchange="updateConfigCard()" />
+                                            <label for="preshared_key1" class="form-label">Preshared Key</label>
+                                            <button class="btn btn-primary " data-mdb-ripple-init type="button"
+                                                id="generatePresharedKey" onclick="generateAndSetPresharedKey(1)"
+                                                data-mdb-tooltip-init title="Generate Preshared Key">
+                                                <i class="fas fa-key"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                <button type="button" class="btn btn-primary" data-mdb-ripple-init id="addPeerPSK"
+                                    onclick="addPskPeer()" data-mdb-tooltip-init title="Add a Peer and Preshared Key"
+                                    disabled><i class="fas fa-plus"></i></button>
                                 <div class="mb-3 form-outline" data-mdb-input-init>
                                     {% for network in networks %}
                                     <textarea rows="6" cols="32" class="card-text" id="nc-{{network.id}}"
@@ -186,6 +219,7 @@
 <script src="{{url_for('static',filename='js/qrcode.min.js')}}"></script>
 <script>
     window.onload = function () {
+        updateIPAddressSelect();
         updatePublicKey();
         updateConfigCard();
     };
@@ -229,6 +263,46 @@
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
     });
+
+    document.getElementById('network').addEventListener('change', function () {
+        updateIPAddressSelect();
+        updateConfigCard();
+    });
+
+    function addPskPeer() {
+        // add another row for peer and preshared key
+        let row = document.getElementsByClassName('peer-psk-row').length + 1;
+        let peerRow = document.createElement('div');
+        peerRow.className = 'd-flex peer-psk-row';
+        peerRow.innerHTML = `
+            <div class="mb-3 form-outline" data-mdb-input-init>
+                <input type="text" class="form-control" id="peer${row}" name="peer" value="">
+                <label for="peer${row}" class="form-label">Peer</label>
+            </div>
+            <div class="form-outline">
+                <div class="mb-3 input-group" data-mdb-input-init>
+                    <input type="text" class="form-control" id="preshared_key${row}" name="preshared_key" value=""
+                        onchange="updateConfigCard()" />
+                    <label for="preshared_key${row}" class="form-label">Preshared Key</label>
+                    <button class="btn btn-primary " data-mdb-ripple-init type="button"
+                        id="generatePresharedKey" onclick="generateAndSetPresharedKey(${row})"
+                        data-mdb-tooltip-init title="Generate Preshared Key">
+                        <i class="fas fa-key"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+        document.getElementsByClassName('peer-psk-row')[0].parentNode.appendChild(peerRow);
+        updateConfigCard();
+
+
+    }
+
+    function generateAndSetPresharedKey(row) {
+        let presharedKey = wireguard.generatePresharedKey();
+        document.getElementById(`preshared_key${row}`).value = presharedKey;
+        updateConfigCard();
+    }
 
     function generateAndSetPrivateKey() {
         let keypair = wireguard.generateKeypair();
@@ -278,12 +352,52 @@
             document.getElementById('network').value = selectedNetworkId;
 
             let network_peer = document.getElementById("nc-" + selectedNetworkId).value;
-            config += network_peer + "\n";
+            config += network_peer;
+            if ((document.getElementById('preshared_key1').value != "None") && (document.getElementById('preshared_key1').value != "")) {
+                config += "PresharedKey = " + document.getElementById('preshared_key1').value;
+            }
+            config += "\n";
         }
+
         console.log(`config: ${config}`);
         document.getElementById('peer_config').value = config;
         generateQRCode(config);
     }
+
+    function updateIPAddressSelect() {
+        let networkId = document.getElementById('network').value;
+        url = "{{url_for('networks.network_ip',network_id=peer.network_id)}}";
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                let select = document.getElementById('network_ip');
+                select.innerHTML = '';
+                let entries = Object.entries(data);
+                entries.sort((a, b) => {
+                    let lastOctetA = Number(a[0].split('.').pop());
+                    let lastOctetB = Number(b[0].split('.').pop());
+                    return lastOctetA - lastOctetB;
+                });
+                entries.forEach(([key, value]) => {
+                    let option = document.createElement('option');
+                    option.value = key;
+                    if (value == null) {
+                        value = "";
+                    }
+                    else if (key == "{{ peer.network_ip }}") {
+                        option.selected = true;
+                    }
+                    else {
+                        option.disabled = true;
+                    }
+                    option.text = `${key}: ${value}`;
+                    select.appendChild(option);
+                });
+                updateConfigCard();
+            });
+
+    }
+
 
     function updatePublicKey() {
         let privateKey = document.getElementById('private_key').value;

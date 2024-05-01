@@ -21,6 +21,7 @@ def add_network(network, sudo_password):
     else:
         return True
 
+
 def query_all_networks():
     network_query = Network.query.all()
     # TODO: create a more robust error handling system
@@ -29,19 +30,26 @@ def query_all_networks():
             try:
                 network.peers_list = json.loads(network.peers_list)
             except:
-                network.peers_list = "Json error"
+                network.peers_list = []
                 print(f"Json error in peers for network {network.name}")
-        try:
-            network.config = json.loads(network.config)
-        except:
-            network.config = "Json error"
-            print(f"Json error in config for network {network.name}")
 
     return network_query
 
+    
+def query_network(network_id):
+    network_query = Network.query.get(network_id)
+    return network_query
+
+def query_peer(peer_id):
+    peer_query = Peer.query.get(peer_id)
+    return peer_query
+
+
 def remove_network(network, sudo_password):
     # Remove a network from the running server
-    network_cmd = f"wg set {network.adapter_name} network {network.get_public_key()} remove"
+    network_cmd = (
+        f"wg set {network.adapter_name} network {network.get_public_key()} remove"
+    )
     print(f"Remove Network: {network_cmd}")
     try:
         helpers.run_sudo(network_cmd, sudo_password)
@@ -50,10 +58,13 @@ def remove_network(network, sudo_password):
         return False
     else:
         return True
-    
+
+
 def update_network(network):
     # Update a network on the running server
+    #TODO: #10 Add logic to update network on server
     return False
+
 
 ## ROUTES ##
 @networks.route("/", methods=["GET"])
@@ -75,17 +86,35 @@ def network_detail(network_id):
     if request.method == "POST":
         if request.method == "POST":
             network.name = request.form.get("name")
-            network.lh_ip = request.form.get("lh_ip")
             network.peers = request.form.get("peers")
             network.base_ip = request.form.get("base_ip")
             network.description = request.form.get("description")
-            network.config = request.form.get("config")
+            network.private_key = request.form.get("private_key")
             network.adapter_name = request.form.get("adapter_name")
-            network.lighthouse = request.form.get("lighthouse")
+            if request.form.get("lighthouse"):
+                network.lighthouse = [query_peer(request.form.get("lighthouse"))]
+            network.proxy = request.form.get("proxy")
+            if request.form.get("peers_list"):
+                network.peers_list = request.form.get("peers_list")
+            network.subnet = request.form.get("subnet")
+            network.dns_server = request.form.get("dns_server")
+            if request.form.get("persistent_keepalive"):
+                print(f"Persistent Keepalive: {request.form.get('persistent_keepalive')}")
+                network.persistent_keepalive = request.form.get("persistent_keepalive")
+            network.allowed_ips = request.form.get("allowed_ips")
+            network.active = request.form.get("active")
         if network.adapter_name == "":
             network.adapter_name = "wg0"
+        try:
+            db.session.commit()
+        except Exception as e:
+            print(f"Error updating network: {e}")
+            message = "Error updating network"
+            flash(message, "danger")
+            return render_template(
+                "network_detail.html", network=network, subnets=subnets
+            )
 
-        db.session.commit()
         message = "Network updated successfully"
         network_list = query_all_networks()
         flash(message, "success")
@@ -96,7 +125,7 @@ def network_detail(network_id):
             "network_detail.html",
             subnets=subnets,
             network=network,
-            lighthouses = helpers.get_lighthouses(),
+            lighthouses=helpers.get_lighthouses(),
             adapters=adapters,
             s_button="Update",
         )
@@ -112,50 +141,62 @@ def networks_add():
     lighthouses = helpers.get_lighthouses()
     adapters = helpers.get_adapter_names()
     if request.method == "POST":
-        lighthouse = Peer()
+        lighthouse_list = []
         name = request.form.get("name")
         message = f"Adding network {name}\n"
         if request.form.get("lighthouse"):
             message += f"Lighthouse selected: {request.form.get('lighthouse')}\n"
-            lighthouse = Peer.query.get(request.form.get("lighthouse"))        
-            private_key = lighthouse.private_key
+            lighthouse_list = [Peer.query.get(request.form.get("lighthouse"))]
+            private_key = lighthouse_list[0].private_key
         else:
             message += "No lighthouse selected"
-            lighthouse.id = 0
+            lighthouse_list = []
             private_key = request.form.get("private_key")
         base_ip = request.form.get("base_ip")
         subnet = request.form.get("subnet")
-        dns = request.form.get("dns")
+        dns = request.form.get("dns_server")
         description = request.form.get("description")
         allowed_ips = request.form.get("allowed_ips")
         adapter_name = request.form.get("adapter_name")
+        if request.form.get("persistent_keepalive"):
+            persistent_keepalive = request.form.get("persistent_keepalive")
+        else:
+            persistent_keepalive = 0
+        peers_list = []
+        if request.form.get("proxy"):
+            proxy = request.form.get("proxy")
+        else:
+            proxy = False
+
 
         # Create a new network object
         # TODO: fix config name rotation
         new_network = Network(
-            name=name,
-            proxy=False,
-            lighthouse=lighthouse.id,
+            active=False,
             adapter_name=adapter_name,
-            private_key=private_key,
-            peers_list="",
+            allowed_ips=allowed_ips,
             base_ip=base_ip,
-            subnet=subnet,
             dns_server=dns,
             description=description,
-            allowed_ips=allowed_ips,
-            )
-        
-        if request.form.get('adapter_name'):
-            new_network.adapter_name = request.form.get('adapter_name')
+            lighthouse=lighthouse_list,
+            name=name,
+            peers_list=peers_list,
+            persistent_keepalive=persistent_keepalive,
+            private_key=private_key,
+            proxy=proxy,
+            subnet=subnet,
+        )
+
+        if request.form.get("adapter_name"):
+            new_network.adapter_name = request.form.get("adapter_name")
         db.session.add(new_network)
         db.session.commit()
         message += "Network added successfully"
         network_list = query_all_networks()
         flash(message, "success")
-        return render_template("networks.html",  networks=network_list)
+        return render_template("networks.html", networks=network_list)
     else:
-        new_network = {'id':0, 'public_key':'', 'name': ''}
+        new_network = {"id": 0, "public_key": "", "name": ""}
         return render_template(
             "network_detail.html",
             network=new_network,
@@ -164,7 +205,8 @@ def networks_add():
             adapters=adapters,
             s_button="Add",
         )
-    
+
+
 @networks.route("/update/<int:network_id>", methods=["POST"])
 @login_required
 def network_update(network_id):
@@ -209,7 +251,7 @@ def network_delete(network_id):
     message += f"\nNetwork deleted successfully"
     network_list = query_all_networks()
     category = "success"
-    return jsonify({'category': category, 'message': message})
+    return jsonify({"category": category, "message": message})
 
 
 @networks.route("/activate/<int:network_id>", methods=["POST"])
@@ -227,7 +269,7 @@ def network_activate(network_id):
             message += "Network already active"
             network.active = True
             db.session.commit()
-            return jsonify({'category': category, 'message': message})
+            return jsonify({"category": category, "message": message})
         try:
             helpers.run_sudo("wg-quick up " + network.adapter_name, sudo_password)
         except Exception as e:
@@ -240,16 +282,17 @@ def network_activate(network_id):
             category = "success"
             message += "Network activated successfully"
     else:
-        category="warning"
+        category = "warning"
         message = "Cannot activate network in database mode"
 
-    return jsonify({'category': category, 'message': message})
+    return jsonify({"category": category, "message": message})
+
 
 @networks.route("/deactivate/<int:network_id>", methods=["POST"])
 @login_required
 def network_deactivate(network_id):
     message = f"Deactivating network {network_id}"
-    category="information"
+    category = "information"
     if current_app.config["MODE"] == "server":
         if request.form.get("sudoPassword"):
             sudo_password = request.form.get("sudoPassword")
@@ -261,18 +304,19 @@ def network_deactivate(network_id):
         except Exception as e:
             traceback.print_exc()
             message += "Error deactivating network: " + str(e)
-            category= "danger"
+            category = "danger"
         else:
             network.active = False
             db.session.commit()
             message += "Network deactivated successfully"
-            category= "success"
+            category = "success"
     else:
-        category="warning"
+        category = "warning"
         message = "Cannot deactivate network in database mode"
-    return jsonify({'category': category, 'message': message})
-  
-@networks.route("/api/<int:network_id>", methods=["POST","GET", "PATCH", "DELETE"])
+    return jsonify({"category": category, "message": message})
+
+
+@networks.route("/api/<int:network_id>", methods=["POST", "GET", "PATCH", "DELETE"])
 @login_required
 def network_api(network_id):
     if request.method == "GET":
@@ -315,3 +359,10 @@ def network_api(network_id):
         return jsonify(message)
     else:
         return jsonify("Invalid request method")
+    
+
+@networks.route("/api/ip/<int:network_id>", methods=["GET"])
+@login_required
+def network_ip(network_id):
+    ip_dict = helpers.get_available_ip(network_id)
+    return jsonify(ip_dict)

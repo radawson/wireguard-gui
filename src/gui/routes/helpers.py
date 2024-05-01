@@ -3,6 +3,7 @@ from gui.models import db, Network, Peer
 from os.path import exists
 import subprocess as sp
 import os
+import ipaddress
 import psutil
 import socket
 import re
@@ -104,8 +105,42 @@ def get_adapter_names():
     for adapter in adapters:
         if adapter != "lo":
             adapter_names.append(adapter)
-
+ 
     return adapter_names
+
+def get_available_ip(network_id: int = 0) -> dict:
+    if network_id == 0:
+        network = get_network(network_id)
+        network.base_ip = current_app.config["BASE_IP"]
+        network.subnet = current_app.config["BASE_NETMASK"]
+    else:
+        network = get_network(network_id)
+    ip_dict = {}
+    if network.base_ip == "":
+        base_ip = current_app.config["BASE_IP"]
+    else:
+        base_ip = network.base_ip
+    if network.subnet == 0:
+        subnet = current_app.config["BASE_NETMASK"]
+    else:
+        subnet = network.subnet
+
+    # Add all ip addresses in the base IP /subnet range to the dictionary
+    for ip in ipaddress.IPv4Network(f"{base_ip}/{subnet}"):
+        # Skip .0 and .255
+        if str(ip).split('.')[3] == '0' or str(ip).split('.')[3] == "255":
+            pass
+        else:
+            ip_dict[str(ip)] = None
+
+    if network.peers_list is None:
+        pass
+    else:
+        for peer in network.peers_list:
+            # add the peer name to the peer IP in the dictionary
+            ip_dict[peer.network_ip] = peer.name
+
+    return ip_dict        
 
 def get_lighthouses():
     return Peer.query.filter_by(lighthouse=True).all()
@@ -122,9 +157,9 @@ def get_network(network_id: int) -> Network:
         message += f"\nUsing Invalid Network settings"
         network = Network(
             name="Invalid Network",
-            lighthouse=0,
+            lighthouse=[],
             private_key="",
-            peers_list="",
+            peers_list=[],
             base_ip="0.0.0.0",
             subnet=0,
             dns_server="",
@@ -136,10 +171,17 @@ def get_network(network_id: int) -> Network:
     return network
 
 def get_peer_count(network_id: int) -> int:
+    count = 0
     with db.session.no_autoflush:
-        count = Peer.query.filter_by(network=network_id).count()
-        print(count)
-        return count
+        network = Network.query.get(network_id)
+        if network.peers_list is None:
+            pass
+        else:
+            count = len(network.peers_list)
+        # Add any lighthouses to the peer count as well
+        count += len(network.lighthouse)
+    print(f"Peer count {count}")
+    return count
 
 def get_peers_status(network_adapter="all", sudo_password=""):
     output = ""

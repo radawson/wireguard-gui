@@ -60,7 +60,7 @@ def query_all_peers(network_id=None):
         print(f"Found {len(peer_query)} peers")
     for peer in peer_query:
         peer.public_key = wgt.WireguardKey(peer.private_key).public_key()
-        network = helpers.get_network(peer.network)
+        network = helpers.get_network(peer.network_id)
         print(f"Peer {peer.name} is on network {network.name}")
         if network.name == "Invalid Network placeholder":
             print(f"Skipping {peer.name} on {network.name}")
@@ -137,9 +137,10 @@ def peers_add():
     new_peer["id"] = 0
     new_peer["config"] = sample_config
     new_peer["public_key"] = ""
-    new_peer["network"] = 1
+    new_peer["network_id"] = 1
     if request.method == "POST":
         name = request.form.get("name")
+        network = Network()
         description = request.form.get("description")
         private_key = request.form.get("private_key")
         if request.form.get("lighthouse") == "on":
@@ -148,12 +149,16 @@ def peers_add():
             lighthouse = False
         if request.form.get("listen_port"):
             listen_port = request.form.get("listen_port")
+        elif lighthouse is True:
+            listen_port = current_app.config["DEFAULT_LISTEN_PORT"]
         else:
-            listen_port = 51820
+            listen_port = None
         network_ip = request.form.get("network_ip")
         subnet = request.form.get("subnet")
         dns = request.form.get("dns")
+        preshared_key = request.form.get("preshared_key")
         # peer_config = request.form["peer_config"]
+        print(f"Adding peer {name} to network {request.form.get('network')}")
         if request.form.get("network"):
             network = Network.query.get(request.form.get("network"))
         else:
@@ -175,12 +180,18 @@ def peers_add():
             lighthouse=lighthouse,
             dns=dns,
             # peer_config=peer_config,
-            network=network.id,
             description=description,
+            network_id=network.id,
+            preshared_key=preshared_key,
         )
         if request.form.get("endpoint_ip"):
             new_peer.endpoint_host = request.form.get("endpoint_host")
         db.session.add(new_peer)
+        # Add peer to network only if a network exists
+        if network is not None:
+            if network.peers_list is None:
+                network.peers_list = []
+            network.peers_list.append(new_peer)
         db.session.commit()
         message += "\nPeer added to database"
         # Add peer to running server
@@ -194,10 +205,12 @@ def peers_add():
         flash(message.replace('\n','<br>'), "success")
         return redirect(url_for("peers.peer_detail", peer_id=new_peer.id))
     else:
+        avail_ip = helpers.get_available_ip()
         return render_template(
             "peer_detail.html",
             networks=network_list,
             peer=new_peer,
+            avail_ip=avail_ip,
             s_button="Add",
         )
 
@@ -207,7 +220,7 @@ def peers_add():
 def peer_update(peer_id):
     message = f"Updating peer {peer_id}"
     peer = Peer.query.get(peer_id)
-    network = Network.query.get(peer.network)
+    network = Network.query.get(peer.network_id)
     sudo_password = current_app.config["SUDO_PASSWORD"]
     peer.name = request.form.get("name")
     peer.description = request.form.get("description")
@@ -220,6 +233,7 @@ def peer_update(peer_id):
         peer.listen_port = request.form.get("listen_port")
     peer.dns = request.form.get("dns")
     peer.network = request.form.get("network")
+    peer.preshared_key = request.form.get("preshared_key")
     if request.form.get("lighthouse") == "on":
         peer.lighthouse = True
     else:

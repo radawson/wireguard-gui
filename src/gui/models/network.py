@@ -1,32 +1,41 @@
+from __future__ import annotations
 import json
 import ipaddress
 
+from typing import List
 from wireguard_tools import WireguardKey
 from .database import db
 from .peer import Peer
 from flask_marshmallow import Marshmallow
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 ma = Marshmallow()
 
+# Association table for lighthouses
+lighthouse_table = db.Table(
+    "lighthouses",
+    db.Column("network_id", db.Integer, db.ForeignKey("network.id")),
+    db.Column("peer_id", db.Integer, db.ForeignKey("peer.id")),
+)
 
-# Create model
+
+# Network Model
 class Network(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50))
-    proxy = db.Column(db.Boolean, default=False)
-    # Lighthouse peer for this network
-    lighthouse = db.Column(db.Integer, db.ForeignKey(Peer.id), nullable=True)
-    private_key = db.Column(db.String(50))
-    peers_list = db.Column(db.Text)
-    base_ip = db.Column(db.String(50))
-    subnet = db.Column(db.Integer)
-    # DNS server setting for peers in this network
-    dns_server = db.Column(db.String(50))
-    description = db.Column(db.Text)
-    persistent_keepalive = db.Column(db.Integer)
+    __tablename__ = "network"
+    id: Mapped[int] = mapped_column(primary_key=True)  # type: ignore
+    active = db.Column(db.Boolean, default=False)
     adapter_name = db.Column(db.String(50))
     allowed_ips = db.Column(db.String(50))
-    active = db.Column(db.Boolean, default=False)
+    base_ip = db.Column(db.String(50))
+    description = db.Column(db.Text)
+    dns_server = db.Column(db.String(50))
+    lighthouse: Mapped[List[Peer]] = relationship(secondary=lighthouse_table)
+    name = db.Column(db.String(50))
+    peers_list: Mapped[List["Peer"]] = relationship()
+    persistent_keepalive = db.Column(db.Integer)
+    private_key = db.Column(db.String(50))
+    proxy = db.Column(db.Boolean, default=False)
+    subnet = db.Column(db.Integer)
 
     @classmethod
     def append_ip(self, ip, host):
@@ -40,7 +49,10 @@ class Network(db.Model):
         return result
 
     def get_config(self):
-        lh = Peer.query.get(self.lighthouse)
+        if len(self.lighthouse) > 0:
+            lh = self.lighthouse[0]
+        else:
+            lh = None
         wg_config = f"[Peer]\nPublicKey = {self.get_public_key()}\n"
         if len(self.allowed_ips) > 0:
             wg_config += f"AllowedIPs = {self.allowed_ips}\n"
@@ -61,17 +73,23 @@ class Network(db.Model):
 
     def to_dict(self):
         dict_ = {c.name: getattr(self, c.name) for c in self.__table__.columns}
-        lighthouse = Peer.query.get(self.lighthouse)
-        if lighthouse:
-            dict_["endpoint_host"] = lighthouse.endpoint_host
-            dict_["listen_port"] = lighthouse.listen_port
+        if len(self.lighthouse) > 0:
+            dict_["endpoint_host"] = self.lighthouse[0].endpoint_host
+            dict_["listen_port"] = self.lighthouse[0].listen_port
         else:
             dict_["endpoint_host"] = None
             dict_["listen_port"] = None
         return dict_
 
     def get_public_key(self) -> WireguardKey:
-        public_key = str(WireguardKey(self.private_key).public_key())
+        print(f"Lighthouse for {self.name} is {self.lighthouse}")
+        if self.lighthouse:
+            public_key = self.lighthouse[0].get_public_key()
+        else:
+            try:
+                public_key = str(WireguardKey(self.private_key).public_key())
+            except ValueError as e:
+                public_key = None
         return public_key
 
 
@@ -90,16 +108,19 @@ class NetworkSchema(ma.Schema):
     class Meta:
         fields = (
             "id",
-            "name",
-            "lighthouse",
-            "proxy",
-            "public_key",
-            "peers_list",
+            "active",
+            "adapter_name",
+            "allowed_ips",
             "base_ip",
             "description",
-            "allowed_ips",
-            "config",
-            "active",
+            "dns_server",
+            "lighthouse",
+            "name",
+            "peers_list",
+            "persistent_keepalive",
+            "private_key",
+            "proxy",
+            "subnet",
         )
 
 
@@ -140,16 +161,6 @@ def network_load_test_db():
         adapter_name="wg0",
         dns_server="10.10.11.1",
         description="A basic /24 network",
-        config=json.dumps(
-            {
-                "public_key": "m1cSyM6Veev3vQIMYQ23gr22Qn/Vu3vg5d8xBTu43gE=",
-                "preshared_key": None,
-                "endpoint_host": "12.13.14.15",
-                "endpoint_port": 51820,
-                "persistent_keepalive": 30,
-                "allowed_ips": "10.10.11.0/24",
-            }
-        ),
         active=True,
     )
     network2 = Network(
@@ -163,16 +174,7 @@ def network_load_test_db():
         adapter_name="wg0",
         dns_server="1.1.1.1,1.1.2.2",
         description="Another network that could be slightly larger and uses the server as a proxy",
-        config=json.dumps(
-            {
-                "public_key": "Wek3/glj4oirvt6gPw3BPL1wLrb47KxXKUwShvBNy0Y=",
-                "preshared_key": None,
-                "endpoint_host": "140.13.214.15",
-                "endpoint_port": 51820,
-                "persistent_keepalive": 30,
-                "allowed_ips": "172.122.88.0/16",
-            }
-        ),
+        active=False,
     )
     network3 = Network(
         name="network 3",
@@ -184,17 +186,9 @@ def network_load_test_db():
         subnet="24",
         adapter_name="wg0",
         description="A small, closed network",
-        config=json.dumps(
-            {
-                "public_key": "OIa8lH814Mzuo1oIT+AQpe8Wm/9JEIf3Tg6g7t5e1k8=",
-                "preshared_key": None,
-                "endpoint_host": "99.133.211.115",
-                "endpoint_port": 51820,
-                "persistent_keepalive": 30,
-                "allowed_ips": "192.168.43.0/24",
-            }
-        ),
+        active=True,
     )
+
     network_list = [network1.__dict__, network2.__dict__, network3.__dict__]
     db.session.bulk_insert_mappings(Network, network_list)
     db.session.commit()

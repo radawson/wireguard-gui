@@ -1,32 +1,54 @@
+from flask import current_app
 from .database import db
 import json
 
+from typing import List
 from wireguard_tools import WireguardKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
-# Create models
+# Helper class for dictionary serialization
+class TextPickleType(db.TypeDecorator):
+    impl = db.Text
+
+    def process_bind_param(self, value, dialect):
+        if value is not None:
+            value = json.dumps(value)
+        return value
+
+    def process_result_value(self, value, dialect):
+        if value is not None:
+            value = json.loads(value)
+        return value
+
+
+# Peer Model
 class Peer(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(50))
-    private_key = db.Column(db.String(50))
-    endpoint_host = db.Column(db.String(50))
-    listen_port = db.Column(db.Integer)
-    network_ip = db.Column(
-        db.String(50)
-    )  # This is the IP address of the peer without subnet
-    subnet = db.Column(
-        db.Integer, default=32
-    )  # This is the subnet for the Peer network IP
-    lighthouse = db.Column(db.Boolean, default=False)  # Is this a lighthouse peer?
+    __tablename__ = "peer"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    active = db.Column(db.Boolean, default=False)
+    description = db.Column(db.Text)
     dns = db.Column(
         db.String(50)
     )  # A peer could have a specific DNS requirement but generally leave it to the network config
+    endpoint_host = db.Column(db.String(50))
+    listen_port = db.Column(db.Integer)
+    name = db.Column(db.String(50))
+    network_ip = db.Column(
+        db.String(50)
+    )  # This is the IP address of the peer without subnet
+    lighthouse = db.Column(db.Boolean, default=False)  # Is this a lighthouse peer?
+    network_id: Mapped[int] = mapped_column(db.ForeignKey("network.id"))
+    # network: Mapped["Network"] = relationship(back_populates="peers_list") # type: ignore
     peers_list = db.Column(db.Text)
-    network = db.Column(db.Integer)  # Network ID
     post_up = db.Column(db.Text)
     post_down = db.Column(db.Text)
-    description = db.Column(db.Text)
-    active = db.Column(db.Boolean, default=False)
+    preshared_key = db.Column(db.String(50))
+    preshared_keys = db.Column(TextPickleType())
+    private_key = db.Column(db.String(50))
+    subnet = db.Column(
+        db.Integer, default=32
+    )  # This is the subnet for the Peer network IP
 
     def get_address(self):
         return self.network_ip + "/" + str(self.subnet)
