@@ -42,7 +42,7 @@ Next, Make any adjustments you need to make to config.yaml. Note that the defaul
 
 ***Security warning*** You can also use 0.0.0.0 to listen on all IP addresses, but understand the implications of this.
 
-The one key in config.yaml you MUST change is the SUDO_PASSWORD. This must be the sudo password for the user that will be running the python script. We DO NOT recommend running the entire python web server with sudo. Your user will have to have sudo permission to set up the WireGuard services. If you are only using the datbase for tracking, you could get away without elevating permissions.
+The one key in config.yaml you MUST change is the SUDO_PASSWORD. This must be the sudo password for the user that will be running the python script. We DO NOT recommend running the entire python web server with sudo. Your user that runs the wepython script will have to have sudo permission to set up the WireGuard services. If you are only using the datbase for tracking, you won't have tyo use sudo or a sudo user because you won't be elevating permissions.
 
 ```bash
 SUDO_PASSWORD: 'changeme'
@@ -58,6 +58,7 @@ Examples using ufw:
 sudo ufw allow 5000/tcp
 sudo ufw allow 51820/udp
 ```
+
 ## WireGuard-tools
 
 Pure Python reimplementation of wireguard-tools with an aim to provide easily
@@ -65,7 +66,6 @@ reusable library functions to handle reading and writing of
 [WireGuard®](https://www.wireguard.com/) configuration files as well as
 interacting with WireGuard devices, both in-kernel through the Netlink API and
 userspace implementations through the cross-platform UAPI API.
-
 
 ### Installation/Usage
 
@@ -84,13 +84,11 @@ Implemented `wg` command line functionality,
 - [x] syncconf - Synchronizes configuration with device
 - [x] genkey, genpsk, pubkey - Key generation
 
-
 Also includes some `wg-quick` functions,
 
 - [ ] up, down - Create and configure WireGuard device and interface
 - [ ] save - Dump device and interface configuration
 - [x] strip - Filter wg-quick settings from configuration
-
 
 Needs root (sudo) access to query and configure the WireGuard devices through
 netlink. But root doesn't know about the currently active virtualenv, you may
@@ -101,7 +99,6 @@ have to pass the full path to the script in the virtualenv, or use
     sudo `which wg-py` showconf <interface>
     sudo /path/to/venv/python3 -m wireguard_tools showconf <interface>
 ```
-
 
 ### Library usage
 
@@ -148,7 +145,7 @@ Also supported are the "Friendly Tags" comments as introduced by
 prometheus-wireguard-exporter, where a `[Peer]` section can contain
 comments which add a user friendly description and/or additional attributes.
 
-```
+```config
 [Peer]
 # friendly_name = Peer description for end users
 # friendly_json = {"flat"="json", "dictionary"=1, "attribute"=2}
@@ -186,6 +183,7 @@ config = WireguardConfig.from_dict(dict_config)
 dict_config = config.asdict()
 pprint(dict_config)
 ```
+
 Finally, there is a `to_qrcode` function that returns a segno.QRCode object
 which contains the configuration. This can be printed and scanned with the
 wireguard-android application. Careful with these because the QRcode exposes
@@ -216,7 +214,6 @@ qr.save("wgconfig.png")
 qr.terminal(compact=True)
 ```
 
-
 #### Working with WireGuard devices
 
 ```python
@@ -242,34 +239,33 @@ This implementation has only been tested on Linux where we've only actively
 used a subset of the available functionality, i.e. the common scenario is
 configuring an interface only once with just a single peer.
 
-
 ### Licenses
 
 wireguard-tools is MIT licensed
 
-    Copyright (c) 2022-2023 Carnegie Mellon University
+Copyright (c) 2022-2023 Carnegie Mellon University
 
-    Permission is hereby granted, free of charge, to any person obtaining a copy of
-    this software and associated documentation files (the "Software"), to deal in
-    the Software without restriction, including without limitation the rights to
-    use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
-    of the Software, and to permit persons to whom the Software is furnished to do
-    so, subject to the following conditions:
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+this software and associated documentation files (the "Software"), to deal in
+the Software without restriction, including without limitation the rights to
+use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies
+of the Software, and to permit persons to whom the Software is furnished to do
+so, subject to the following conditions:
 
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
 `wireguard_tools/curve25519.py` was released in the public domain
 
-    Copyright Nicko van Someren, 2021. This code is released into the public domain.
-    https://gist.github.com/nickovs/cc3c22d15f239a2640c185035c06f8a3
+Copyright Nicko van Someren, 2021. This code is released into the public domain.
+<https://gist.github.com/nickovs/cc3c22d15f239a2640c185035c06f8a3>
 
 "WireGuard" is a registered trademark of Jason A. Donenfeld.
