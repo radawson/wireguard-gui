@@ -38,7 +38,7 @@ class Peer(db.Model):
         db.String(50)
     )  # This is the IP address of the peer without subnet
     lighthouse = db.Column(db.Boolean, default=False)  # Is this a lighthouse peer?
-    network_id: Mapped[int] = mapped_column(db.ForeignKey("network.id"))
+    network_id: Mapped[int] = mapped_column(db.ForeignKey("network.id"), default=0)
     # network: Mapped["Network"] = relationship(back_populates="peers_list") # type: ignore
     peers_list = db.Column(db.Text)
     post_up = db.Column(db.Text)
