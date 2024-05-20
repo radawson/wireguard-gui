@@ -11,6 +11,10 @@
     <hr class="hr" />
 
     <!-- data table -->
+    <div data-mdb-input-init class="form-outline mb-4">
+        <input type="text" class="form-control" id="datatable-search-input" />
+        <label class="form-label" for="datatable-search-input">Search</label>
+    </div>
     <div id="networks-datatable" data-mdb-loading="true">
     </div>
 
@@ -40,7 +44,7 @@
                             ...network,
                             public_key: wireguard.getPublicKey(network.private_key),
                             endpoint_ip: `${network.endpoint_host}:${network.listen_port}`,
-                            base_ip_range: `${network.base_ip}/${network.subnet}`,
+                            base_ip_range: `${network.base_ip}90/${network.subnet}`,
                             peer_count: network.peer_count,
                             active: `
                             <span class="badge bg-danger" data-mdb-index="${network.id}">Inactive</span>
@@ -121,7 +125,7 @@
 
     const columns = [
         { label: 'Activation', field: 'active', sort: false },
-        { label: 'Name', field: 'name', sort: false },
+        { label: 'Name', field: 'name', sort: true },
         { label: 'Public Key', field: 'public_key', sort: false },
         { label: 'Net IP Range', field: 'base_ip_range', sort: true },
         { label: 'Endpoint IP:Port', field: 'endpoint_ip', sort: false },
@@ -140,5 +144,9 @@
         { columns, },
         { loading: true }
     );
+
+    document.getElementById('datatable-search-input').addEventListener('input', (e) => {
+        networksTable.search(e.target.value);
+    });
 </script>
 {% endblock %}
