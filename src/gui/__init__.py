@@ -1,10 +1,11 @@
 from flask import Flask, render_template, request
 from flask_migrate import Migrate
+from flask_cors import CORS
 import os
 import yaml
 from .routes import dashboard, main, networks, peers, settings, users, wizard
 
-version = "0.3.2b0"
+version = "0.3.3b0"
 
 
 basedir = os.getcwd()
@@ -20,6 +21,7 @@ peers_data = {
 def create_app():
     # Initialize the Flask application
     app = Flask(__name__)
+    CORS(app)
     app.basedir = basedir
     app.__version__ = version
 
