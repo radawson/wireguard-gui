@@ -6,7 +6,7 @@
 # Check for root
 if [ "$EUID" -eq 0 ]
   then echo "Please run as a normal user with sudo privileges, not as root. "
-  exit
+  exit 2
 fi
 
 # Update system
@@ -61,5 +61,24 @@ do
     password=""
 done
 
-# modify config file
-sed -i "s/p
+# Create a service file
+sudo cat > /etc/systemd/system/wireguard-gui.service <<!EOF
+
+[Unit]
+Description=Wireguard Database
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=${USER}
+WorkingDirectory=${HOME}/wireguard-gui/src
+ExecStart=/usr/bin/python3 ${HOME}/wireguard-gui/src/run.py
+
+[Install]
+WantedBy=multi-user.target
+!EOF
+
+sudo systemctl enable wireguard-gui 
