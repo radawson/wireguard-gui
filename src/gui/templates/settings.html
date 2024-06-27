@@ -48,6 +48,17 @@
                     <label for="btn_load_db">Download database in JSON format</label>
                 </div>
             </div>
+
+            <div class="row form-group align-items-center">
+                <div class="col-sm-2">
+                    <button type="button" class="btn btn-danger" data-mdb-ripple-init data-mdb-modal-init data-mdb-target="#confirmModal"
+                        id="btn_purge_db">Purge Database</button>
+                </div>
+                <div class="col-sm-10">
+                    <label for="btn_purge_db">Purge all entries from the database </label>
+                </div>
+            </div>
+            <hr class="hr" />
             <div class="row form-group align-items-center">
                 <div class="col-sm-2">
                     <a href="{{url_for ('user.register')}}" type="button" class="btn btn-primary" id="btn_add_user">
@@ -57,14 +68,13 @@
                     <label for="btn_load_db">Add user</label>
                 </div>
             </div>
-            <div class="row form-group align-items-center">
-                <div class="col-sm-2">
-                    <button type="button" class="btn btn-danger" data-mdb-ripple-init data-mdb-modal-init data-mdb-target="#confirmModal"
-                        id="btn_purge_db">Purge Database</button>
-                </div>
-                <div class="col-sm-10">
-                    <label for="btn_purge_db">Purge all entries from the database </label>
-                </div>
+            <!-- data table -->
+            <div data-mdb-input-init class="form-outline mb-4">
+                <input type="text" class="form-control" id="datatable-search-input" />
+                <label class="form-label" for="datatable-search-input">Search</label>
+            </div>
+
+            <div id="peers-datatable" data-mdb-loading="true">
             </div>
         </div>
         <div class="tab-pane fade" id="admin-tabs-2" role="tabpanel" aria-labelledby="admin-tab-2">
