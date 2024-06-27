@@ -1,4 +1,4 @@
-from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import login_required, login_user, logout_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from gui.models import db, User
@@ -66,3 +66,25 @@ def register():
             return render_template("register.html", admin=True)
         else:
             return render_template("register.html")
+
+@users.route("/api/<int:user_id>", methods=["GET", "POST", "PATCH", "DELETE"])
+@login_required
+def user_api(user_id):
+    if request.method == "GET":
+        if user_id == 0:
+            return jsonify([user.to_dict() for user in User.query.all()])
+        return jsonify(User.query.get(user_id))
+    elif request.method == "POST":
+        return jsonify("POST method not allowed yet"), 405
+    elif request.method == "PATCH":
+        return jsonify("PATCH method not allowed yet"), 405
+    elif request.method == "DELETE":
+        user = User.query.get(user_id)
+        if user:
+            db.session.delete(user)
+            db.session.commit()
+            return jsonify("User deleted successfully")
+        else:
+            return jsonify("User not found"), 404
+    else:
+        return jsonify("Invalid request method"), 405

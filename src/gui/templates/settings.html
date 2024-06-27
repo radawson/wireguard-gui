@@ -51,31 +51,28 @@
 
             <div class="row form-group align-items-center">
                 <div class="col-sm-2">
-                    <button type="button" class="btn btn-danger" data-mdb-ripple-init data-mdb-modal-init data-mdb-target="#confirmModal"
-                        id="btn_purge_db">Purge Database</button>
+                    <button type="button" class="btn btn-danger" data-mdb-ripple-init data-mdb-modal-init
+                        data-mdb-target="#confirmModal" id="btn_purge_db">Purge Database</button>
                 </div>
                 <div class="col-sm-10">
                     <label for="btn_purge_db">Purge all entries from the database </label>
                 </div>
             </div>
             <hr class="hr" />
-            <div class="row form-group align-items-center">
-                <div class="col-sm-2">
-                    <a href="{{url_for ('user.register')}}" type="button" class="btn btn-primary" id="btn_add_user">
-                        Add user</a>
-                </div>
-                <div class="col-sm-10">
-                    <label for="btn_load_db">Add user</label>
-                </div>
-            </div>
+            <button href="{{url_for ('user.register')}}" type="button" class="btn btn-primary text-nowrap"
+                id="btn_add_user" data-mdb-ripple-init>
+                Add user</button>
             <!-- data table -->
-            <div data-mdb-input-init class="form-outline mb-4">
-                <input type="text" class="form-control" id="datatable-search-input" />
-                <label class="form-label" for="datatable-search-input">Search</label>
+            <div class="d-md-flex justify-content-md-end form-group ">
+                <div data-mdb-input-init class="form-outline mb-4">
+                    <input type="text" class="form-control" id="datatable-search-input" />
+                    <label class="form-label" for="datatable-search-input">Search</label>
+                </div>
             </div>
 
-            <div id="peers-datatable" data-mdb-loading="true">
+            <div id="users-datatable" data-mdb-loading="true">
             </div>
+            <!-- data table -->
         </div>
         <div class="tab-pane fade" id="admin-tabs-2" role="tabpanel" aria-labelledby="admin-tab-2">
 
@@ -122,4 +119,102 @@
     {% endblock %}
 
     {% block scripts %}
+
+    <script>
+        window.onload = function () {
+            loadUsers();
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const btnAddUser = document.getElementById('btn_add_user');
+
+            btnAddUser.addEventListener('click', () => {
+                window.location.href = "{{ url_for('user.register') }}";
+            });
+        });
+
+        function loadUsers() {
+        fetch("{{ url_for('user.user_api', user_id=0)}}")
+            .then((response) => response.json())
+            .then((data) => {
+                usersTable.update(
+                    {
+                        rows: data.map((user) => ({
+                            ...user,
+                            actions: `
+                            <a role="button" class="edit-user-button text-muted ms-2" data-mdb-index="${user.id}">
+                                <i class="fa fa-pen-to-square"></i>
+                            </a>
+                            <a role="button" class="delete-user-button text-muted ms-2" data-mdb-index="${user.id}">
+                                <i class="fa fa-trash-alt"></i>
+                            </a>
+                            `,
+                        })),
+                    },
+                    { loading: false }
+                );
+            });
+    }
+
+    const table = document.getElementById('users-datatable');
+
+    const setupButtons = (action) => {
+        document.getElementsByClassName(`${action}-user-button`).forEach((button) => {
+            if (action === 'edit') {
+                button.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const index = button.getAttribute('data-mdb-index');
+                    let base_url = "{{ url_for('user.user_api',user_id=0)}}";
+                    let url = base_url.replace(0, index)
+                    window.location.href = url;
+                });
+            } else if (action === 'delete') {
+                button.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const index = button.getAttribute('data-mdb-index');
+                    let base_url = "{{ url_for('user.user_api',user_id=0)}}";
+                    let url = base_url.replace(0, index);
+                    console.log(`delete user: ${index} at ${url}`);
+                    fetch(url, {
+                        method: 'DELETE',
+                    })
+                        .then((response) => response.json())
+                        .then((data) => {
+                            console.log(data);
+                            showAlert(data);
+                            loadUsers();
+                        });
+                });
+            } else {
+                button.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const index = button.getAttribute('data-mdb-index');
+                    console.log(`${action} message: ${index}`, messages[index]);
+                });
+            }
+        });
+    };
+
+    const columns = [
+        { label: 'User Name', field: 'username', sort: true },
+        { label: 'Email', field: 'email', sort: true },
+        { label: 'Password', field: 'password' },
+        { label: 'Actions', field: 'actions' },
+    ];
+
+    table.addEventListener('render.mdb.datatable', () => {
+        setupButtons('edit');
+        setupButtons('delete');
+    })
+
+    const usersTable = new mdb.Datatable(
+        table,
+        { columns, },
+        { loading: true }
+    );
+
+    document.getElementById('datatable-search-input').addEventListener('input', (e) => {
+        usersTable.search(e.target.value);
+    });
+    </script>
     {% endblock %}
