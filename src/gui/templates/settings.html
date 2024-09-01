@@ -127,7 +127,6 @@
 
         document.addEventListener('DOMContentLoaded', function () {
             const btnAddUser = document.getElementById('btn_add_user');
-
             btnAddUser.addEventListener('click', () => {
                 window.location.href = "{{ url_for('user.register') }}";
             });
