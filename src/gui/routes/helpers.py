@@ -1,14 +1,17 @@
-from flask import current_app
-from gui.models import Network, Peer
+from flask import current_app, flash
+from gui.models import db, Network, Peer
 from os.path import exists
 import subprocess as sp
 import os
+import ipaddress
 import psutil
 import socket
 import re
 
 
-def check_wireguard(sudo_password: str):
+def check_wireguard(sudo_password=""):
+    if sudo_password == "":
+        sudo_password = current_app.config["SUDO_PASSWORD"]
     if not exists("/etc/wireguard"):
         # check if this is a linux machine
         if sp.check_output(["uname", "-s"]).decode("utf-8").strip() == "Linux":
@@ -72,6 +75,18 @@ def config_save(config_file_string, directory, filename) -> "bool":
     return True
 
 
+def enable_ip_forwarding_v4(sudo_password):
+    message = ""
+    try:
+        run_sudo("sysctl -w net.ipv4.ip_forward=1", sudo_password)
+        run_sudo("sysctl -p", sudo_password)
+        message += f"\nIPv4 forwarding enabled"
+    except Exception as e:
+        message += f"\nError enabling ipv4 forwarding: {e}"
+    print(message)
+    return message
+
+
 def generate_cert(cert_path, cert_name, key_name):
     # Generate a new certificate for the server
     if not exists(cert_path):
@@ -90,15 +105,94 @@ def get_adapter_names():
     for adapter in adapters:
         if adapter != "lo":
             adapter_names.append(adapter)
-
+ 
     return adapter_names
 
-def get_peers_status(network, sudo_password=""):
-    if sudo_password == "":
-        sudo_password = current_app.config["SUDO_PASSWORD"]
-    output = run_sudo(f"wg show {network.adapter_name}", sudo_password )
+def get_available_ip(network_id: int = 0) -> dict:
+    if network_id == 0:
+        network = get_network(network_id)
+        network.base_ip = current_app.config["BASE_IP"]
+        network.subnet = current_app.config["BASE_NETMASK"]
+    else:
+        network = get_network(network_id)
+    ip_dict = {}
+    if network.base_ip == "":
+        base_ip = current_app.config["BASE_IP"]
+    else:
+        base_ip = network.base_ip
+    if network.subnet == 0:
+        subnet = current_app.config["BASE_NETMASK"]
+    else:
+        subnet = network.subnet
 
+    # Add all ip addresses in the base IP /subnet range to the dictionary
+    for ip in ipaddress.IPv4Network(f"{base_ip}/{subnet}"):
+        # Skip .0 and .255
+        if str(ip).split('.')[3] == '0' or str(ip).split('.')[3] == "255":
+            pass
+        else:
+            ip_dict[str(ip)] = None
+
+    if network.peers_list is None:
+        pass
+    else:
+        for peer in network.peers_list:
+            # add the peer name to the peer IP in the dictionary
+            ip_dict[peer.network_ip] = peer.name
+
+    return ip_dict        
+
+def get_lighthouses():
+    return Peer.query.filter_by(lighthouse=True).all()
+
+
+def get_network(network_id: int) -> Network:
+    network = Network()
+    message = f"Network Lookup using {network_id} which is {type(network_id)}"
+    try:
+        network = Network.query.get(network_id)
+        message += f"\nfound {network.name}"
+    except:
+        message += f"\nNetwork {network_id} not found"
+        message += f"\nUsing Invalid Network settings"
+        network = Network(
+            name="Invalid Network",
+            lighthouse=[],
+            private_key="",
+            peers_list=[],
+            base_ip="0.0.0.0",
+            subnet=0,
+            dns_server="",
+            description="Invalid Network placeholder",
+            allowed_ips="",
+            adapter_name="",
+        )
+    print(message)
+    return network
+
+def get_peer_count(network_id: int) -> int:
+    count = 0
+    with db.session.no_autoflush:
+        network = Network.query.get(network_id)
+        if network.peers_list is None:
+            pass
+        else:
+            count = len(network.peers_list)
+        # Add any lighthouses to the peer count as well
+        count += len(network.lighthouse)
+    print(f"Peer count {count}")
+    return count
+
+def get_peers_status(network_adapter="all", sudo_password=""):
+    output = ""
+    if current_app.config["LINUX"]:
+        output = run_sudo(f"wg show {network_adapter}", sudo_password)
+    else:
+        # TODO: Implement Windows sudo
+        output = ""
+        #flash("Command line options not implemented for Windows", "warning")
     return parse_wg_output(output)
+
 
 
 def get_public_ip():
@@ -169,25 +263,53 @@ def port_open(port: int):
         return False
 
 
+def remove_peers_all(network_id: int, sudo_password=""):
+    message = f"Removing peers from network {network_id}"
+    if sudo_password == "":
+        sudo_password = current_app.config["SUDO_PASSWORD"]
+    network = get_network(network_id)
+    message += f"\n\tNetwork {network.name} found"
+    peers = Peer.query.filter_by(network=network.id).all()
+    for peer in peers:
+        run_sudo(
+            f"wg set {network.adapter_name} peer {str(peer.get_public_key())} remove",
+            sudo_password,
+        )
+        message += f"\n\t\tRemoved peer {peer.name} from adapter {network.adapter_name}"
+        peer.active = False
+        peer.network = 0
+        db.session.commit()
+        message += f"\n\t\tUnregistered peer {peer.name} from network"
+    return message
+
+
 def run_cmd(command) -> str:
     print(f"Running {command}")
     cmd_lst = command.split()
-    result = sp.run(cmd_lst, stdout=sp.PIPE, stderr=sp.PIPE)
+    result = sp.run(cmd_lst, stderr=sp.PIPE, stdout=sp.PIPE)
     output = result.stdout.decode()
     error = result.stderr.decode()
-    if error:
+    if error != "":
         print(f"\n\n\tError:\n{error}")
     print(f"\n\n\tOutput:\n{output}")
     return output
 
 
 def run_sudo(command: str, password: str) -> str:
-    print(f"Running {command} with sudo")
-    cmd_lst = ["sudo", "-S"] + command.split()
-    result = sp.run(cmd_lst, input=password.encode(), stdout=sp.PIPE, stderr=sp.PIPE)
-    output = result.stdout.decode()
-    error = result.stderr.decode()
-    if error:
-        print(f"\n\n\tSudo Error:\n{error}")
-    print(f"\n\n\tSudo Output:\n{output}")
+    output = ""
+    if current_app.config["LINUX"]:
+        print(f"Running {command} with sudo")
+        cmd_lst = ["sudo", "-S"] + command.split()
+        result = sp.run(
+            cmd_lst, input=password.encode(), stderr=sp.PIPE, stdout=sp.PIPE
+        )
+        output = result.stdout.decode()
+        error = result.stderr.decode()
+        if error != "":
+            print(f"\n\n\tSudo Error:\n{error}")
+        print(f"\n\n\tSudo Output:\n{output}")
+    else:
+        # TODO: Implement Windows sudo
+        output = "Command line options not implemented for Windows"
+        #flash("Sudo command line options not implemented for Windows", "warning")
     return output
