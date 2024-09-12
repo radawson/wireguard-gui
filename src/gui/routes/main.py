@@ -25,10 +25,14 @@ def about():
 
 
 # Route for the user profile page
-@main.route('/profile')
-@login_required
+@current_app.oidc.require_login
 def profile():
-    return render_template('profile.html', current_user=current_user)
+    if current_app.oidc.user_loggedin:
+        user_info = current_app.oidc.user_getinfo(['sub', 'name', 'email'])
+        return render_template('profile.html', current_user=user_info)
+    else:
+        flash("You need to log in to access this page", "warning")
+        return redirect(url_for("main.index"))
 
 # Route for testing purposes - Delete when dev work completed
 @main.route("/test")
