@@ -21,3 +21,6 @@ src/output
 
 # HTTPS Keys
 src/pki/
+
+# keycloak configuration
+src/client_secrets.json

@@ -2,6 +2,7 @@ from flask import Blueprint, current_app, flash, redirect, render_template, requ
 from flask_login import login_required, login_user, logout_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from gui.models import db, User
+from gui.oidc import oidc
 
 users = Blueprint("user", __name__)
 
@@ -9,12 +10,13 @@ users = Blueprint("user", __name__)
 ## ROUTES ##
 
 @users.route("/login", methods=["GET", "POST"])
+@oidc.require_login
 def login():
     # Check if OpenID Connect (OIDC) is enabled
     if current_app.config.get("OIDC_ENABLED", False):
         # If the user is already logged in via OIDC
         if current_app.oidc.user_loggedin:
-            user_info = current_app.oidc.user_getinfo(["sub", "email", "name"])
+            user_info = current_app.session['oidc_auth_profile']
             # Check if the user exists in the local DB
             user = User.query.filter_by(email=user_info["email"]).first()
             if not user:
@@ -30,10 +32,8 @@ def login():
                 flash(f"Welcome {user.username}, your account has been created.", "success")
             
             login_user(user)
-            return redirect(url_for("main.index"))
-        else:
-            # If not logged in, redirect to OIDC login page
-            return current_app.oidc.redirect_to_auth_server()
+        return redirect(url_for("main.index"))
+
     
     # Fallback to local login if OIDC is not enabled
     if request.method == "POST":

@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request
 from flask_migrate import Migrate
 from flask_cors import CORS
-from flask_oidc import OpenIDConnect
+from .oidc import oidc
 import os
 import yaml
 from .routes import dashboard, main, networks, peers, settings, users, wizard
@@ -46,7 +46,7 @@ def create_app():
         app.config["LINUX"] = False
 
     # Instantiate the OpenID Connect object
-    app.oidc = OpenIDConnect(app)
+    oidc.init_app(app)
 
     # Check if certificates exist and create them if they don't
     if not os.path.exists(app.config["PKI_CERT_PATH"]):

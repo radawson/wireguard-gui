@@ -1,5 +1,6 @@
 from flask import Blueprint, current_app, flash, redirect, render_template, url_for
 from flask_login import current_user, login_required
+from gui import oidc
 from gui.models import User
 
 main = Blueprint('main', __name__)
@@ -25,7 +26,8 @@ def about():
 
 
 # Route for the user profile page
-@current_app.oidc.require_login
+@main.route('/profile')
+@oidc.require_login
 def profile():
     if current_app.oidc.user_loggedin:
         user_info = current_app.oidc.user_getinfo(['sub', 'name', 'email'])
