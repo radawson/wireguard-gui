@@ -56,7 +56,9 @@ def create_app():
     try:
         oidc.init_app(app)
         logger.info("OIDC initialized successfully")
+        app.config["OIDC_ENABLED"] = True
     except Exception as e:
+        app.config["OIDC_ENABLED"] = False
         logger.error(f"Error initializing OIDC: {e}")
 
     # Check if certificates exist and create them if they don't
@@ -99,12 +101,19 @@ def create_app():
 
     # Import the blueprints
     app.register_blueprint(dashboard)
+    logger.debug("Dashboard blueprint registered")
     app.register_blueprint(main)
+    logger.debug("Main blueprint registered")
     app.register_blueprint(networks)
+    logger.debug("Networks blueprint registered")
     app.register_blueprint(peers)
+    logger.debug("Peers blueprint registered")
     app.register_blueprint(settings)
+    logger.debug("Settings blueprint registered")
     app.register_blueprint(users)
+    logger.debug("Users blueprint registered")
     app.register_blueprint(wizard)
+    logger.debug("Wizard blueprint registered")
 
     return app
 

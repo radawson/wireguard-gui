@@ -3,22 +3,26 @@ from flask_login import login_required, login_user, logout_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from gui.models import db, User
 from gui.oidc import oidc
+from logger import Logger
 
-users = Blueprint("user", __name__)
+logger = Logger().get_logger()
+
+users = Blueprint("users", __name__)
 
 
 ## ROUTES ##
 
 @users.route("/login", methods=["GET", "POST"])
-@oidc.require_login
 def login():
-    # Check if OpenID Connect (OIDC) is enabled
-    if current_app.config.get("OIDC_ENABLED", False):
-        # If the user is already logged in via OIDC
+    logger.debug(f"Login route called with {request.method}.")
+    if request.method == "GET":
+        logger.info(f"OIDC enabled: {current_app.config.get('OIDC_ENABLED')}")
         if current_app.oidc.user_loggedin:
+            logger.info(f"OIDC user logged in: {oidc.user_loggedin}")
             user_info = session['oidc_auth_profile']
+            logger.info("User is already logged in.")
             # Check if the user exists in the local DB
-            user = User.query.filter_by(email=user_info["email"]).first()
+            user = User.query.filter_by(auth_id=user_info["sub"])
             if not user:
                 # Optionally create a new user if not found in the local DB
                 new_user = User(
@@ -33,11 +37,12 @@ def login():
                 flash(f"Welcome {user.username}, your account has been created.", "success")
             
             login_user(user)
-        return redirect(url_for("main.index"))
-
+            return redirect(url_for("main.index"))
+        
+        return render_template("login.html")
     
     # Fallback to local login if OIDC is not enabled
-    if request.method == "POST":
+    elif request.method == "POST":
         username = request.form.get("name").lower()
         password = request.form.get("password")
         remember = True if request.form.get("remember") else False
@@ -50,7 +55,7 @@ def login():
         login_user(user, remember=remember)
         return redirect(url_for("main.index"))
     
-    return render_template("login.html")
+
 
 
 @users.route("/logout")
@@ -59,9 +64,10 @@ def logout():
     # Check if OpenID Connect (OIDC) is enabled
     if current_app.config.get("OIDC_ENABLED", False):
         # Logout from OIDC and local session
-        current_app.oidc.logout()
+        oidc.logout()
     
     # Perform local logout
+    oidc.logout()
     logout_user()
     flash("You have been logged out.", "success")
     

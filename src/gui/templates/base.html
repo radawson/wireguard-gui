@@ -81,11 +81,11 @@
                 </div>
                 <!-- Avatar -->
                 {% if current_user.is_authenticated %}
-                <a class="text-reset me-3" href="{{ url_for('user.logout') }}" data-mdb-tooltip-init title="Logout">
+                <a class="text-reset me-3" href="{{ url_for('users.logout') }}" data-mdb-tooltip-init title="Logout">
                     <i class="fas fa-sign-out-alt"></i>
                 </a>
                 {% else %}
-                <a class="text-reset me-3" href="{{ url_for('user.login') }}" data-mdb-tooltip-init title="Login">
+                <a class="text-reset me-3" href="{{ url_for('users.login') }}" data-mdb-tooltip-init title="Login">
                     <i class="fas fa-sign-in-alt"></i>
                 </a>
                 {% endif %}
