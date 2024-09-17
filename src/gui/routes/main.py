@@ -15,7 +15,7 @@ def index():
     if user_count == 0:
         message = "No users found. Please create an admin user."
         flash(message, "warning")
-        return redirect(url_for("user.register", admin=True))
+        return redirect(url_for("users.register", admin=True))
     return render_template("index.html")
 
 # Route for the about page

@@ -564,3 +564,127 @@ ssl.SSLEOFError: EOF occurred in violation of protocol (_ssl.c:2406)
 2024-09-16 21:13:59,399 - werkzeug - INFO - 127.0.0.1 - - [16/Sep/2024 21:13:59] "GET /?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
 2024-09-16 21:15:01,973 - werkzeug - INFO -  * Detected change in 'Q:\\Projects\\wireguard-gui\\src\\gui\\routes\\__init__.py', reloading
 2024-09-16 21:15:02,096 - werkzeug - INFO -  * Restarting with stat
+2024-09-17 09:40:29,008 - root - INFO - Starting the Flask application
+2024-09-17 09:40:29,019 - root - INFO - OIDC initialized successfully
+2024-09-17 09:40:29,068 - root - DEBUG - Dashboard blueprint registered
+2024-09-17 09:40:29,069 - root - DEBUG - Main blueprint registered
+2024-09-17 09:40:29,072 - root - DEBUG - Networks blueprint registered
+2024-09-17 09:40:29,074 - root - DEBUG - Peers blueprint registered
+2024-09-17 09:40:29,075 - root - DEBUG - Settings blueprint registered
+2024-09-17 09:40:29,077 - root - DEBUG - Users blueprint registered
+2024-09-17 09:40:29,079 - root - DEBUG - Wizard blueprint registered
+2024-09-17 09:40:29,115 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on https://127.0.0.1:5000
+2024-09-17 09:40:29,116 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2024-09-17 09:40:29,117 - werkzeug - INFO -  * Restarting with stat
+2024-09-17 09:40:30,018 - root - INFO - Starting the Flask application
+2024-09-17 09:40:30,022 - root - INFO - OIDC initialized successfully
+2024-09-17 09:40:30,042 - root - DEBUG - Dashboard blueprint registered
+2024-09-17 09:40:30,044 - root - DEBUG - Main blueprint registered
+2024-09-17 09:40:30,047 - root - DEBUG - Networks blueprint registered
+2024-09-17 09:40:30,050 - root - DEBUG - Peers blueprint registered
+2024-09-17 09:40:30,050 - root - DEBUG - Settings blueprint registered
+2024-09-17 09:40:30,051 - root - DEBUG - Users blueprint registered
+2024-09-17 09:40:30,053 - root - DEBUG - Wizard blueprint registered
+2024-09-17 09:40:30,062 - werkzeug - WARNING -  * Debugger is active!
+2024-09-17 09:40:30,067 - werkzeug - INFO -  * Debugger PIN: 110-387-521
+2024-09-17 09:40:38,616 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 09:40:38] "[35m[1mGET / HTTP/1.1[0m" 500 -
+2024-09-17 09:40:38,719 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 09:40:38] "GET /?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1" 200 -
+2024-09-17 09:40:38,731 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 09:40:38] "GET /?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1" 200 -
+2024-09-17 09:40:38,832 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 09:40:38] "GET /?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+2024-09-17 09:40:38,874 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 09:40:38] "GET /?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+2024-09-17 09:51:30,899 - root - INFO - Starting the Flask application
+2024-09-17 09:51:30,904 - root - INFO - OIDC initialized successfully
+2024-09-17 09:51:30,947 - root - DEBUG - Dashboard blueprint registered
+2024-09-17 09:51:30,948 - root - DEBUG - Main blueprint registered
+2024-09-17 09:51:30,952 - root - DEBUG - Networks blueprint registered
+2024-09-17 09:51:30,954 - root - DEBUG - Peers blueprint registered
+2024-09-17 09:51:30,955 - root - DEBUG - Settings blueprint registered
+2024-09-17 09:51:30,955 - root - DEBUG - Users blueprint registered
+2024-09-17 09:51:30,955 - root - DEBUG - Wizard blueprint registered
+2024-09-17 09:51:30,977 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on https://127.0.0.1:5000
+2024-09-17 09:51:30,977 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2024-09-17 09:51:30,978 - werkzeug - INFO -  * Restarting with stat
+2024-09-17 09:51:31,989 - root - INFO - Starting the Flask application
+2024-09-17 09:51:31,995 - root - INFO - OIDC initialized successfully
+2024-09-17 09:51:32,014 - root - DEBUG - Dashboard blueprint registered
+2024-09-17 09:51:32,016 - root - DEBUG - Main blueprint registered
+2024-09-17 09:51:32,018 - root - DEBUG - Networks blueprint registered
+2024-09-17 09:51:32,020 - root - DEBUG - Peers blueprint registered
+2024-09-17 09:51:32,022 - root - DEBUG - Settings blueprint registered
+2024-09-17 09:51:32,022 - root - DEBUG - Users blueprint registered
+2024-09-17 09:51:32,023 - root - DEBUG - Wizard blueprint registered
+2024-09-17 09:51:32,034 - werkzeug - WARNING -  * Debugger is active!
+2024-09-17 09:51:32,038 - werkzeug - INFO -  * Debugger PIN: 110-387-521
+2024-09-17 09:51:36,014 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 09:51:36] "[35m[1mGET / HTTP/1.1[0m" 500 -
+2024-09-17 09:51:36,095 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 09:51:36] "GET /?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1" 200 -
+2024-09-17 09:51:36,107 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 09:51:36] "GET /?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1" 200 -
+2024-09-17 09:51:36,192 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 09:51:36] "GET /?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+2024-09-17 10:47:28,863 - werkzeug - INFO -  * Detected change in 'D:\\Projects\\wireguard-gui\\src\\gui\\routes\\main.py', reloading
+2024-09-17 10:47:28,985 - werkzeug - INFO -  * Restarting with stat
+2024-09-17 10:47:29,872 - root - INFO - Starting the Flask application
+2024-09-17 10:47:29,876 - root - INFO - OIDC initialized successfully
+2024-09-17 10:47:29,891 - root - DEBUG - Dashboard blueprint registered
+2024-09-17 10:47:29,892 - root - DEBUG - Main blueprint registered
+2024-09-17 10:47:29,895 - root - DEBUG - Networks blueprint registered
+2024-09-17 10:47:29,897 - root - DEBUG - Peers blueprint registered
+2024-09-17 10:47:29,898 - root - DEBUG - Settings blueprint registered
+2024-09-17 10:47:29,899 - root - DEBUG - Users blueprint registered
+2024-09-17 10:47:29,900 - root - DEBUG - Wizard blueprint registered
+2024-09-17 10:47:29,907 - werkzeug - WARNING -  * Debugger is active!
+2024-09-17 10:47:29,911 - werkzeug - INFO -  * Debugger PIN: 110-387-521
+2024-09-17 10:48:37,979 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:48:37] "[32mGET / HTTP/1.1[0m" 302 -
+2024-09-17 10:48:38,013 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:48:38] "[35m[1mGET /register?admin=True HTTP/1.1[0m" 500 -
+2024-09-17 10:48:38,107 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:48:38] "GET /register?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1" 200 -
+2024-09-17 10:48:38,111 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:48:38] "GET /register?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1" 200 -
+2024-09-17 10:48:38,150 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:48:38] "GET /register?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+2024-09-17 10:48:38,178 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:48:38] "GET /register?__debugger__=yes&cmd=resource&f=console.png HTTP/1.1" 200 -
+2024-09-17 10:50:16,636 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:50:16] "GET /register?admin=True HTTP/1.1" 200 -
+2024-09-17 10:50:16,683 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:50:16] "GET /static/js/mdb.umd.min.js HTTP/1.1" 200 -
+2024-09-17 10:50:16,692 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:50:16] "GET /static/css/mdb.min.css HTTP/1.1" 200 -
+2024-09-17 10:50:16,694 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:50:16] "GET /static/plugins/js/all.min.js HTTP/1.1" 200 -
+2024-09-17 10:50:16,697 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:50:16] "GET /static/css/style.css HTTP/1.1" 200 -
+2024-09-17 10:50:16,924 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:50:16] "GET /static/img/wgglogo.png HTTP/1.1" 200 -
+2024-09-17 10:50:17,217 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:50:17] "GET /static/img/favicon.ico HTTP/1.1" 200 -
+2024-09-17 10:50:21,416 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:50:21] "[32mGET /login HTTP/1.1[0m" 302 -
+2024-09-17 10:57:03,644 - root - INFO - Starting the Flask application
+2024-09-17 10:57:03,651 - root - INFO - OIDC initialized successfully
+2024-09-17 10:57:03,666 - root - DEBUG - Dashboard blueprint registered
+2024-09-17 10:57:03,667 - root - DEBUG - Main blueprint registered
+2024-09-17 10:57:03,671 - root - DEBUG - Networks blueprint registered
+2024-09-17 10:57:03,672 - root - DEBUG - Peers blueprint registered
+2024-09-17 10:57:03,673 - root - DEBUG - Settings blueprint registered
+2024-09-17 10:57:03,674 - root - DEBUG - Users blueprint registered
+2024-09-17 10:57:03,675 - root - DEBUG - Wizard blueprint registered
+2024-09-17 10:57:03,693 - werkzeug - INFO - [31m[1mWARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.[0m
+ * Running on https://127.0.0.1:5000
+2024-09-17 10:57:03,693 - werkzeug - INFO - [33mPress CTRL+C to quit[0m
+2024-09-17 10:57:03,695 - werkzeug - INFO -  * Restarting with stat
+2024-09-17 10:57:04,472 - root - INFO - Starting the Flask application
+2024-09-17 10:57:04,475 - root - INFO - OIDC initialized successfully
+2024-09-17 10:57:04,488 - root - DEBUG - Dashboard blueprint registered
+2024-09-17 10:57:04,489 - root - DEBUG - Main blueprint registered
+2024-09-17 10:57:04,492 - root - DEBUG - Networks blueprint registered
+2024-09-17 10:57:04,494 - root - DEBUG - Peers blueprint registered
+2024-09-17 10:57:04,495 - root - DEBUG - Settings blueprint registered
+2024-09-17 10:57:04,495 - root - DEBUG - Users blueprint registered
+2024-09-17 10:57:04,495 - root - DEBUG - Wizard blueprint registered
+2024-09-17 10:57:04,501 - werkzeug - WARNING -  * Debugger is active!
+2024-09-17 10:57:04,507 - werkzeug - INFO -  * Debugger PIN: 110-387-521
+2024-09-17 10:57:07,848 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:57:07] "GET /register?admin=True HTTP/1.1" 200 -
+2024-09-17 10:57:07,967 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:57:07] "GET /static/css/mdb.min.css HTTP/1.1" 200 -
+2024-09-17 10:57:07,982 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:57:07] "GET /static/css/style.css HTTP/1.1" 200 -
+2024-09-17 10:57:07,987 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:57:07] "GET /static/js/mdb.umd.min.js HTTP/1.1" 200 -
+2024-09-17 10:57:07,988 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:57:07] "GET /static/plugins/js/all.min.js HTTP/1.1" 200 -
+2024-09-17 10:57:08,016 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:57:08] "GET /static/img/wgglogo.png HTTP/1.1" 200 -
+2024-09-17 10:57:08,198 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:57:08] "GET /static/img/favicon.ico HTTP/1.1" 200 -
+2024-09-17 10:57:14,673 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:57:14] "[32mGET /login HTTP/1.1[0m" 302 -
+2024-09-17 10:57:27,524 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:57:27] "[32mGET /authorize?state=spps8a9iMEcdoLzu1xUN4xJj9vBN86&session_state=bfb92663-9055-4116-a8eb-d01f26caaf88&iss=https://sso.blackhorse.info/realms/tog&code=b0625c08-54a4-46e7-9d9b-e3492d51c101.bfb92663-9055-4116-a8eb-d01f26caaf88.61c730d9-6bfc-4770-b055-b26eed5684ab HTTP/1.1[0m" 302 -
+2024-09-17 10:57:27,541 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:57:27] "[32mGET / HTTP/1.1[0m" 302 -
+2024-09-17 10:57:27,581 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:57:27] "GET /register?admin=True HTTP/1.1" 200 -
+2024-09-17 10:57:27,660 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:57:27] "GET /static/css/mdb.min.css HTTP/1.1" 200 -
+2024-09-17 10:57:27,667 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:57:27] "GET /static/css/style.css HTTP/1.1" 200 -
+2024-09-17 10:57:27,672 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:57:27] "GET /static/js/mdb.umd.min.js HTTP/1.1" 200 -
+2024-09-17 10:57:27,678 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:57:27] "GET /static/plugins/js/all.min.js HTTP/1.1" 200 -
+2024-09-17 10:57:27,707 - werkzeug - INFO - 127.0.0.1 - - [17/Sep/2024 10:57:27] "GET /static/img/wgglogo.png HTTP/1.1" 200 -
