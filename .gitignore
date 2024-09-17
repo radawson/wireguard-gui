@@ -24,3 +24,6 @@ src/pki/
 
 # keycloak configuration
 src/client_secrets.json
+
+# local logs
+src/*.log

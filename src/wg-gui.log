@@ -2,3 +2,8 @@
 2024-09-16 20:26:43,396 - werkzeug - WARNING -  * Debugger is active!
 2024-09-16 20:26:43,401 - werkzeug - INFO -  * Debugger PIN: 884-866-831
 2024-09-16 20:27:18,562 - werkzeug - INFO -  * Detected change in 'Q:\\Projects\\wireguard-gui\\src\\gui\\__init__.py', reloading
+2024-09-16 20:27:19,520 - root - INFO - Starting the Flask application
+2024-09-16 20:27:19,523 - root - INFO - OIDC initialized successfully
+2024-09-16 20:27:19,552 - werkzeug - WARNING -  * Debugger is active!
+2024-09-16 20:27:19,558 - werkzeug - INFO -  * Debugger PIN: 884-866-831
+2024-09-16 20:28:27,687 - werkzeug - INFO -  * Detected change in 'Q:\\Projects\\wireguard-gui\\src\\gui\\routes\\user.py', reloading
