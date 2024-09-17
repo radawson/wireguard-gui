@@ -1,6 +1,6 @@
-from flask import Blueprint, current_app, flash, redirect, render_template, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, session, url_for
 from flask_login import current_user, login_required
-from gui import oidc
+from gui.oidc import oidc
 from gui.models import User
 
 main = Blueprint('main', __name__)
@@ -29,8 +29,8 @@ def about():
 @main.route('/profile')
 @oidc.require_login
 def profile():
-    if current_app.oidc.user_loggedin:
-        user_info = current_app.oidc.user_getinfo(['sub', 'name', 'email'])
+    if oidc.user_loggedin:
+        user_info = session.get("oidc_auth_profile")
         return render_template('profile.html', current_user=user_info)
     else:
         flash("You need to log in to access this page", "warning")
@@ -39,6 +39,10 @@ def profile():
 # Route for testing purposes - Delete when dev work completed
 @main.route("/test")
 def test():
-    message = "Test Message"
+    if oidc.user_loggedin:
+        user_info = session.get("oidc_auth_profile")
+        message = f"Claims:{user_info}"
+    else:
+        message = "Test Message"
     flash(message, "success")
     return render_template("test.html")

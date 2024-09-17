@@ -4,6 +4,7 @@ from flask_cors import CORS
 from .oidc import oidc
 import os
 import yaml
+from logger import Logger
 from .routes import dashboard, main, networks, peers, settings, users, wizard
 
 version = "0.3.3b0"
@@ -22,6 +23,12 @@ peers_data = {
 def create_app():
     # Initialize the Flask application
     app = Flask(__name__)
+
+    # Enable logging
+    logger = Logger().get_logger()
+    logger.info("Starting the Flask application")
+
+    # Enable CORS
     CORS(app)
     app.basedir = basedir
     app.__version__ = version
@@ -45,8 +52,12 @@ def create_app():
     else:
         app.config["LINUX"] = False
 
-    # Instantiate the OpenID Connect object
-    oidc.init_app(app)
+    # Initialize OIDC
+    try:
+        oidc.init_app(app)
+        logger.info("OIDC initialized successfully")
+    except Exception as e:
+        logger.error(f"Error initializing OIDC: {e}")
 
     # Check if certificates exist and create them if they don't
     if not os.path.exists(app.config["PKI_CERT_PATH"]):

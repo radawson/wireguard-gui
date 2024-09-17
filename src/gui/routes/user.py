@@ -1,4 +1,4 @@
-from flask import Blueprint, current_app, flash, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
 from flask_login import login_required, login_user, logout_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from gui.models import db, User
@@ -16,7 +16,7 @@ def login():
     if current_app.config.get("OIDC_ENABLED", False):
         # If the user is already logged in via OIDC
         if current_app.oidc.user_loggedin:
-            user_info = current_app.session['oidc_auth_profile']
+            user_info = session['oidc_auth_profile']
             # Check if the user exists in the local DB
             user = User.query.filter_by(email=user_info["email"]).first()
             if not user:
@@ -24,6 +24,7 @@ def login():
                 new_user = User(
                     email=user_info["email"],
                     username=user_info["name"].lower(),
+                    auth_id=user_info["sub"],
                     password=generate_password_hash(""),  # Dummy password
                 )
                 db.session.add(new_user)
