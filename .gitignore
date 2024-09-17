@@ -26,4 +26,4 @@ src/pki/
 src/client_secrets.json
 
 # local logs
-#src/*.log
+src/*.log
