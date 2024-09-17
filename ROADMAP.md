@@ -15,3 +15,5 @@
 * Event Logging
 
 * Server adapter survives reboot or not flag
+
+* DNS management
