@@ -1,34 +1,74 @@
-from flask import Blueprint, current_app, flash, jsonify, redirect, render_template, request, url_for
+from flask import Blueprint, current_app, flash, redirect, render_template, request, session, url_for
 from flask_login import login_required, login_user, logout_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from gui.models import db, User
+from gui.oidc import oidc
+from logger import Logger
 
-users = Blueprint("user", __name__)
+logger = Logger().get_logger()
+
+users = Blueprint("users", __name__)
 
 
 ## ROUTES ##
+
 @users.route("/login", methods=["GET", "POST"])
 def login():
-    if request.method == "POST":
+    logger.debug(f"Login route called with {request.method}.")
+    if request.method == "GET":
+        logger.info(f"OIDC enabled: {current_app.config.get('OIDC_ENABLED')}")
+        if current_app.oidc.user_loggedin:
+            logger.info(f"OIDC user logged in: {oidc.user_loggedin}")
+            user_info = session['oidc_auth_profile']
+            logger.info("User is already logged in.")
+            # Check if the user exists in the local DB
+            user = User.query.filter_by(auth_id=user_info["sub"])
+            if not user:
+                # Optionally create a new user if not found in the local DB
+                new_user = User(
+                    email=user_info["email"],
+                    username=user_info["name"].lower(),
+                    auth_id=user_info["sub"],
+                    password=generate_password_hash(""),  # Dummy password
+                )
+                db.session.add(new_user)
+                db.session.commit()
+                user = new_user
+                flash(f"Welcome {user.username}, your account has been created.", "success")
+            
+            login_user(user)
+            return redirect(url_for("main.index"))
+        
+        return render_template("login.html")
+    
+    # Fallback to local login if OIDC is not enabled
+    elif request.method == "POST":
         username = request.form.get("name").lower()
-        email = request.form.get('email')
-        password = request.form.get('password')
-        remember = True if request.form.get('remember') else False
+        password = request.form.get("password")
+        remember = True if request.form.get("remember") else False
 
         user = User.query.filter_by(username=username).first()
         if not user or not check_password_hash(user.password, password):
-            flash('Please check your login details and try again.')
-            return redirect(url_for('user.login'))
+            flash("Please check your login details and try again.", "danger")
+            return redirect(url_for("user.login"))
+        
         login_user(user, remember=remember)
         return redirect(url_for("main.index"))
-    else:
-        return render_template("login.html")
-
+    
 
 @users.route("/logout")
 @login_required
 def logout():
+    # Check if OpenID Connect (OIDC) is enabled
+    if current_app.config.get("OIDC_ENABLED", False):
+        # Logout from OIDC and local session
+        oidc.logout()
+    
+    # Perform local logout
+    oidc.logout()
     logout_user()
+    flash("You have been logged out.", "success")
+    
     # Redirect to home page
     return redirect(url_for("main.index"))
 
@@ -43,12 +83,12 @@ def register():
 
         if password != confirm_password:
             flash('Passwords do not match')
-            return redirect(url_for("user.register"))
+            return redirect(url_for("users.register"))
 
         user = User.query.filter_by(username=username).first()
         if user:
             flash('Username already exists')
-            return redirect(url_for("user.login"))
+            return redirect(url_for("users.login"))
 
         new_user = User(
             email=email,
@@ -60,31 +100,9 @@ def register():
         db.session.commit()
         message = f"User {new_user.username} added successfully"
         flash(message, "success")
-        return redirect(url_for("user.login"))
+        return redirect(url_for("users.login"))
     else:
         if request.args.get("admin") == "True":
             return render_template("register.html", admin=True)
         else:
             return render_template("register.html")
-
-@users.route("/api/<int:user_id>", methods=["GET", "POST", "PATCH", "DELETE"])
-@login_required
-def user_api(user_id):
-    if request.method == "GET":
-        if user_id == 0:
-            return jsonify([user.to_dict() for user in User.query.all()])
-        return jsonify(User.query.get(user_id))
-    elif request.method == "POST":
-        return jsonify("POST method not allowed yet"), 405
-    elif request.method == "PATCH":
-        return jsonify("PATCH method not allowed yet"), 405
-    elif request.method == "DELETE":
-        user = User.query.get(user_id)
-        if user:
-            db.session.delete(user)
-            db.session.commit()
-            return jsonify("User deleted successfully")
-        else:
-            return jsonify("User not found"), 404
-    else:
-        return jsonify("Invalid request method"), 405

@@ -2,6 +2,7 @@
 TEMPLATES_AUTO_RELOAD: True
 SQLALCHEMY_TRACK_MODIFICATIONS: True
 SQLALCHEMY_DATABASE_URI: 'sqlite:///{basedir}/wg.db'
+#SQLALCHEMY_DATABASE_URI: 'postgresql+psycopg2://{username}:{password}@{host}:{port}/{dbname}'
 HOST_IP: '127.0.0.1'
 HOST_PORT: '5000'
 BASE_DIR: '{basedir}'

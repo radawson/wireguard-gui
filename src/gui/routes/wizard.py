@@ -12,9 +12,113 @@ from flask import (
 )
 from ..models import db, Network, Peer, subnets
 from wireguard_tools import WireguardKey
+from logger import Logger
+
+logger = Logger().get_logger()
 
 
 wizard = Blueprint("wizard", __name__, url_prefix="/wizard")
+
+
+### Element Functions ###
+def create_network(
+    active: bool = False,
+    adapter_name: str = "",
+    allowed_ips: str = "",
+    base_ip: str = "",
+    dns_server: str = "",
+    description: str = "",
+    lighthouse: list = [],
+    name: str = "",
+    peers_list: list = [],
+    persistent_keepalive: int = 25,
+    private_key: str = "",
+    proxy: bool = False,
+    subnet: int = 32,
+) -> Network:
+    try:
+        new_network = Network(
+            active=active,
+            adapter_name=adapter_name,
+            allowed_ips=allowed_ips,
+            base_ip=base_ip,
+            dns_server=dns_server,
+            description=description,
+            lighthouse=lighthouse,
+            name=name,
+            peers_list=peers_list,
+            persistent_keepalive=persistent_keepalive,
+            private_key=private_key,
+            proxy=proxy,
+            subnet=subnet,
+        )
+
+    except Exception as e:
+        logger.error(f"Error creating network: {str(e)}")
+        raise e
+    else:
+        logger.info(f"Network {name} created successfully")
+
+    # Add the new network to the database
+    try:
+        db.session.add(new_network)
+        db.session.commit()
+    except Exception as e:
+        logger.error(f"Error adding network to database: {str(e)}")
+        raise e
+    else:
+        logger.info(f"Network {name} added to database")
+        return new_network
+
+
+def create_peer(
+    active: bool = False,
+    description: str = "",
+    dns: str = "",
+    endpoint_host: str = "",
+    listen_port: int = None,
+    name: str = "",
+    network_ip: str = "",  # This is the IP address of the peer without subnet
+    lighthouse: bool = False,  # Is this a lighthouse peer?
+    network_id: int = 0,  # network: Mapped["Network"] = relationship(back_populates="peers_list")
+    peers_list: str = "",
+    post_up: str = "",
+    post_down: str = "",
+    preshared_key: str = "",
+    private_key: str = "",
+    subnet: int = 32,
+) -> Peer:
+
+    new_peer = Peer(
+        active=active,
+        description=description,
+        endpoint_host=endpoint_host,
+        listen_port=listen_port,
+        name=name,
+        network_ip=network_ip,
+        lighthouse=lighthouse,
+        network_id=network_id,
+        peers_list=peers_list,
+        post_up=post_up,
+        post_down=post_down,
+        preshared_key=preshared_key,
+        private_key=private_key,
+        subnet=subnet,
+    )
+
+    if dns:
+        new_peer.dns = dns
+
+    # Add the new peer to the database
+    try:
+        db.session.add(new_peer)
+        db.session.commit()
+    except Exception as e:
+        logger.error(f"Error adding peer: {str(e)}")
+        raise e
+    else:
+        logger.info(f"Peer {name} added to database")
+        return new_peer
 
 
 ## ROUTES ##
@@ -95,58 +199,76 @@ def wizard_basic():
 
     post_up_string = f"iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o {adapters[0]} -j MASQUERADE"
     post_down_string = f"iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o {adapters[0]} -j MASQUERADE"
-    new_peer = Peer(
-        active = False,
-        description="Auto-generated peer for the lighthouse",
-        endpoint_host=endpoint_host,
-        listen_port=listen_port,
-        lighthouse=True,
-        name=f"Lighthouse server for {name}",
-        network_id=0,
-        network_ip=lh_address,
-        peers_list = "",
-        preshared_key="",
-        post_up=post_up_string,
-        post_down=post_down_string,
-        private_key=private_key,
-        subnet=subnet,
-    )
 
     if dns:
-        new_peer.dns = dns
+        new_dns = dns
+    else:
+        new_dns = None
 
-    # Add the new peer to the database
-    db.session.add(new_peer)
-    db.session.commit()
-    message += "\nPeer added to database"
-
-    # Create a new network object
+    # Create a new network 
     # TODO: fix config name rotation
-    lighthouse_list = [new_peer]
-    new_network = Network(
-        active = False,
-        adapter_name=adapter_name,
-        allowed_ips = allowed_ips,
-        base_ip=base_ip,
-        dns_server=dns,
-        description=description,
-        lighthouse= lighthouse_list,
-        name=name,
-        peers_list=[],
-        persistent_keepalive=25,
-        private_key=new_peer.private_key,
-        proxy=False,
-        subnet=subnet,
-    )
+    lighthouse_list = []
+    try:
+        new_network = create_network(
+            active=False,
+            adapter_name=adapter_name,
+            allowed_ips=allowed_ips,
+            base_ip=base_ip,
+            dns_server=dns,
+            description=description,
+            lighthouse=lighthouse_list,
+            name=name,
+            peers_list=[],
+            persistent_keepalive=25,
+            private_key=private_key,
+            proxy=False,
+            subnet=subnet,
+        )
+    except Exception as e:
+        message += f"\nError creating network: {str(e)}"
+        flash(message, "danger")
+        logger.error(message)
+        return render_template("wizard_setup.html", defaults=defaults, subnets=subnets)
 
-    # Add the new network to the database
-    db.session.add(new_network)
-    db.session.commit()
-    message += "\nNetwork added to database"
+    # Create the lighthouse peer
+    try:
+        new_peer = create_peer(
+            active=False,
+            description="Auto-generated peer for the lighthouse",
+            dns=new_dns,
+            endpoint_host=endpoint_host,
+            listen_port=listen_port,
+            name=f"Lighthouse server for {name}",
+            network_ip=lh_address,
+            lighthouse=True,
+            network_id=new_network.id,
+            peers_list="",
+            post_up=post_up_string,
+            post_down=post_down_string,
+            preshared_key="",
+            private_key=private_key,
+            subnet=subnet,
+        )
+    except Exception as e:
+        message += f"\nError creating lighthouse: {str(e)}"
+        flash(message, "danger")
+        logger.error(message)
+        return render_template("wizard_setup.html", defaults=defaults, subnets=subnets)
+    else:
+        message += "Lighthouse added to database\n"
+        logger.info(message)
 
-    new_peer.network = new_network.id
+    new_peer.network = new_network  # Assign the network object, not just the ID
+    new_network.lighthouse.append(new_peer)  # Add the peer to the network's lighthouse list
 
-    db.session.commit()
+    # Update the database
+    try:
+        db.session.commit()
+    except Exception as e:
+        message += f"\nError updating database: {str(e)}"
+        flash(message, "danger")
+        logger.error(message)
+        return render_template("wizard_setup.html", defaults=defaults, subnets=subnets)
     message += "\nPeer network updated"
 
     if current_app.config["MODE"] == "server":

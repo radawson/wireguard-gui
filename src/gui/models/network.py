@@ -1,11 +1,10 @@
 from __future__ import annotations
 import json
 import ipaddress
-
 from typing import List
+from marshmallow import fields, post_dump
 from wireguard_tools import WireguardKey
 from .database import db
-from .peer import Peer
 from flask_marshmallow import Marshmallow
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -29,9 +28,11 @@ class Network(db.Model):
     base_ip = db.Column(db.String(50))
     description = db.Column(db.Text)
     dns_server = db.Column(db.String(50))
-    lighthouse: Mapped[List[Peer]] = relationship(secondary=lighthouse_table)
+    lighthouse: Mapped[List["Peer"]] = relationship("Peer", secondary=lighthouse_table, cascade="all, delete")
     name = db.Column(db.String(50))
-    peers_list: Mapped[List["Peer"]] = relationship()
+    peers_list: Mapped[List["Peer"]] = relationship(
+        "Peer", back_populates="network", cascade="all, delete-orphan"
+    )
     persistent_keepalive = db.Column(db.Integer)
     private_key = db.Column(db.String(50))
     proxy = db.Column(db.Boolean, default=False)
@@ -63,6 +64,8 @@ class Network(db.Model):
         return wg_config
 
     def get_endpoint(self):
+        from .peer import Peer
+
         lh = Peer.query.get(self.lighthouse)
         return {
             "endpoint_host": lh.endpoint_host,
@@ -70,12 +73,11 @@ class Network(db.Model):
             "private_key": lh.private_key,
             "public_key": self.get_public_key(lh.public_key),
         }
-    
+
     def get_peer_count(self):
         count = len(self.peers_list)
-        count += len(self.lighthouse)
         return count
-    
+
     def get_public_key(self) -> WireguardKey:
         print(f"Lighthouse for {self.name} is {self.lighthouse}")
         if self.lighthouse:
@@ -98,6 +100,7 @@ class Network(db.Model):
         dict_["peer_count"] = self.get_peer_count()
         return dict_
 
+
 class Network_Config(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     public_key = db.Column(db.String(50), nullable=False)
@@ -109,41 +112,48 @@ class Network_Config(db.Model):
 
 
 # JSON Schema
-class NetworkSchema(ma.Schema):
+class NetworkSchema(ma.SQLAlchemyAutoSchema):
     class Meta:
-        fields = (
-            "id",
-            "active",
-            "adapter_name",
-            "allowed_ips",
-            "base_ip",
-            "description",
-            "dns_server",
-            "lighthouse",
-            "name",
-            "peers_list",
-            "persistent_keepalive",
-            "private_key",
-            "proxy",
-            "subnet",
-        )
+        model = Network  # Assuming you have imported the model
+        include_fk = True  # Include foreign keys like 'network_id'
+    
+    # Custom fields to replicate the logic from to_dict
+    endpoint_host = fields.Method("get_endpoint_host")
+    listen_port = fields.Method("get_listen_port")
+    peer_count = fields.Method("get_peer_count")
 
+    def get_endpoint_host(self, obj):
+        # Replicates logic for endpoint_host
+        if len(obj.lighthouse) > 0:
+            return obj.lighthouse[0].endpoint_host
+        return None
 
-class NetworkConfigSchema(ma.Schema):
-    class Meta:
-        fields = (
-            "id",
-            "public_key",
-            "preshared_key",
-            "endpoint_host",
-            "endpoint_port",
-            "persistent_keepalive",
-            "allowed_ips",
-        )
+    def get_listen_port(self, obj):
+        # Replicates logic for listen_port
+        if len(obj.lighthouse) > 0:
+            return obj.lighthouse[0].listen_port
+        return None
 
+    def get_peer_count(self, obj):
+        # Calls the get_peer_count method on the Network object
+        return obj.get_peer_count()
 
+    @post_dump
+    def filter_null(self, data, **kwargs):
+        """
+        This method can be used to filter out null values or further process the serialized data.
+        For example, if you wanted to remove fields that are None, you could do it here.
+        """
+        return data
+
+# Create schema instance
 network_schema = NetworkSchema()
 networks_schema = NetworkSchema(many=True)
+
+
+class NetworkConfigSchema(ma.SQLAlchemyAutoSchema):
+    class Meta:
+        model = Network_Config
 
 network_config_schema = NetworkConfigSchema()
 network_configs_schema = NetworkConfigSchema(many=True)

@@ -1,4 +1,5 @@
 from .dashboard import dashboard
+from .domain import domains
 from .main import main
 from .network import networks
 from .peer import peers
