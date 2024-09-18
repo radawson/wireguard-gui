@@ -86,4 +86,4 @@ virtualenv==20.26.0
 Werkzeug==3.0.2
 wheel==0.43.0
 win-inet-pton==1.1.0
-wireguard-tools==0.4.7
+wireguard-tools>=0.4.7
