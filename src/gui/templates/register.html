@@ -14,11 +14,11 @@
                 {% with messages = get_flashed_messages() %}
                 {% if messages %}
                 <div class="alert alert-danger">
-                    {{ messages[0] }}. Go to <a href="{{ url_for('user.login') }}">login page</a>.
+                    {{ messages[0] }}. Go to <a href="{{ url_for('users.login') }}">login page</a>.
                 </div>
                 {% endif %}
                 {% endwith %}
-                <form method="POST" action="{{url_for('user.register')}}">
+                <form method="POST" action="{{url_for('users.register')}}">
                     <div class="mb-3 form-outline position-relative" data-mdb-input-init>
                         <input type="text" class="form-control" id="name" name="name"/>
                         </input>

@@ -37,3 +37,11 @@ OUTPUT_DIR: '{basedir}/output'
 
 # Logging
 LOG_DIR: '{basedir}/logs'
+
+# OIDC Config
+OIDC_ENABLED: false
+OIDC_CLIENT_SECRETS: 'client_secrets.json'
+OIDC_ID_TOKEN_COOKIE_SECURE: False
+OIDC_USER_INFO_ENABLED: True
+OIDC_SCOPES: ['openid', 'email', 'profile']
+OIDC_INTROSPECTION_AUTH_METHOD: 'client_secret_post'

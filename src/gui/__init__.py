@@ -3,7 +3,7 @@ from flask_migrate import Migrate
 from flask_cors import CORS
 import os
 import yaml
-from .routes import dashboard, main, networks, peers, settings, users, wizard
+from .routes import dashboard, domains, main, networks, peers, settings, users, wizard
 
 version = "0.4.1b0"
 
