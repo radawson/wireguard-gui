@@ -20,15 +20,15 @@ classifiers = [
 
 dependencies = [
   "Flask~=3.0.0",
-  "flask-marshmallow~=0.15.0",
+  "flask-marshmallow~=1.2.1",
   "Flask-Migrate~=4.0.5",
   "Flask-SQLAlchemy~=3.1.1",
-  "marshmallow-sqlalchemy~=0.29.0",
-  "marshmallow~=3.20.1",
+  "marshmallow-sqlalchemy~=1.1.0",
+  "marshmallow~=3.22.0",
   "PyYAML~=6.0.1",
-  "requests~=2.31.0",
+  "requests~=2.32.3",
   "SQLAlchemy~=2.0.23",
-  "wheel~=0.41.3"
+  "wheel~=0.44.0"
 ]
 
 [project.urls]
