@@ -1,0 +1,27 @@
+-r requirements.in
+atomicwrites>=1.4.1
+black>=24.4.1
+cfgv>=3.4.0
+cookiecutter>=2.6.0
+distlib>=0.4.0
+filelock>=3.13.4
+identify>=2.5.36
+iniconfig>=2.0.0
+mypy>=1.10.0
+mypy-extensions>=1.0.0
+nodeenv>=1.8.0
+pathspec>=1.0.3
+pip-upgrader>=1.4.15
+pluggy>=1.5.0
+poethepoet>=0.25.1
+pre-commit>=3.7.0
+py>=1.11.0
+pytest>=8.1.1
+pytest-mock>=3.14.0
+python-tools
+tbump>=6.11.0
+toml>=0.10.2
+tomli>=2.0.1
+tomlkit>=0.12.4
+types-python-dateutil>=2.9.0.20240316
+virtualenv>=20.26.0
