@@ -29,7 +29,7 @@ cd wireguard-gui
 Next, install the python requirements with sudo to make them global. Yes, you will get a warning about this.
 
 ```bash
-sudo pip install -r requirements.ini
+sudo pip install -r requirements.txt
 ```
 
 Once the installation is complete, change directory into src.

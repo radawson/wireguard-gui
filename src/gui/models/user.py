@@ -1,6 +1,7 @@
 from flask_login import UserMixin
 from .database import db
 from flask_marshmallow import Marshmallow
+from marshmallow import fields
 
 ma = Marshmallow()
 
@@ -19,8 +20,10 @@ class User(UserMixin, db.Model):
 
 # JSON Schema
 class UserSchema(ma.Schema):
-    class Meta:
-        fields = ("id", "name", "email", "password")
+    id = fields.Int()
+    username = fields.Str(allow_none=True)
+    email = fields.Str(allow_none=True)
+    password = fields.Str(allow_none=True)
 
 
 user_schema = UserSchema()
