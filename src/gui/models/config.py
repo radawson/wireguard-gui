@@ -1,8 +1,4 @@
 from .database import db
-from flask_marshmallow import Marshmallow
-from marshmallow import fields
-
-ma = Marshmallow()
 
 # Create models
 class Config(db.Model):
@@ -21,26 +17,6 @@ class Config(db.Model):
     description = db.Column(db.Text)
     created_at = db.Column(db.DateTime)
     updated_at = db.Column(db.DateTime, default=db.func.current_timestamp())
-
-# JSON Schema
-class ConfigSchema(ma.Schema):
-    id = fields.Int()
-    public_key = fields.Str()
-    preshared_key = fields.Str(allow_none=True)
-    endpoint_host = fields.Str(allow_none=True)
-    endpoint_port = fields.Int(allow_none=True)
-    persistent_keepalive = fields.Int(allow_none=True)
-    allowed_ips = fields.Str(allow_none=True)
-    friendly_name = fields.Str(allow_none=True)
-    friendly_json = fields.Str(allow_none=True)
-    last_handshake = fields.Float(allow_none=True)
-    rx_bytes = fields.Int(allow_none=True)
-    tx_bytes = fields.Int(allow_none=True)
-    description = fields.Str(allow_none=True)
-
-
-config_schema = ConfigSchema()
-configs_schema = ConfigSchema(many=True)
 
 def config_load_test_db():
     pass

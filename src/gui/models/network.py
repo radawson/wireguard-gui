@@ -6,11 +6,7 @@ from typing import List
 from wireguard_tools import WireguardKey
 from .database import db
 from .peer import Peer
-from flask_marshmallow import Marshmallow
-from marshmallow import fields
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-
-ma = Marshmallow()
 
 # Association table for lighthouses
 lighthouse_table = db.Table(
@@ -107,41 +103,6 @@ class Network_Config(db.Model):
     endpoint_port = db.Column(db.Integer)
     persistent_keepalive = db.Column(db.Integer)
     allowed_ips = db.Column(db.String(50))
-
-
-# JSON Schema
-class NetworkSchema(ma.Schema):
-    id = fields.Int()
-    active = fields.Bool()
-    adapter_name = fields.Str(allow_none=True)
-    allowed_ips = fields.Str(allow_none=True)
-    base_ip = fields.Str(allow_none=True)
-    description = fields.Str(allow_none=True)
-    dns_server = fields.Str(allow_none=True)
-    lighthouse = fields.List(fields.Raw(), allow_none=True)
-    name = fields.Str(allow_none=True)
-    peers_list = fields.List(fields.Raw(), allow_none=True)
-    persistent_keepalive = fields.Int(allow_none=True)
-    private_key = fields.Str(allow_none=True)
-    proxy = fields.Bool()
-    subnet = fields.Int(allow_none=True)
-
-
-class NetworkConfigSchema(ma.Schema):
-    id = fields.Int()
-    public_key = fields.Str()
-    preshared_key = fields.Str(allow_none=True)
-    endpoint_host = fields.Str(allow_none=True)
-    endpoint_port = fields.Int(allow_none=True)
-    persistent_keepalive = fields.Int(allow_none=True)
-    allowed_ips = fields.Str(allow_none=True)
-
-
-network_schema = NetworkSchema()
-networks_schema = NetworkSchema(many=True)
-
-network_config_schema = NetworkConfigSchema()
-network_configs_schema = NetworkConfigSchema(many=True)
 
 
 def network_load_test_db():
