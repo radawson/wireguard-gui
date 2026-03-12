@@ -51,7 +51,7 @@ class Network(db.Model):
         else:
             lh = None
         wg_config = f"[Peer]\nPublicKey = {self.get_public_key()}\n"
-        if len(self.allowed_ips) > 0:
+        if self.allowed_ips:
             wg_config += f"AllowedIPs = {self.allowed_ips}\n"
         if lh:
             wg_config += f"Endpoint = {lh.endpoint_host}:{lh.listen_port}\n"

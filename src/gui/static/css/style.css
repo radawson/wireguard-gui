@@ -1,17 +1,7 @@
-.bordered {
-    border-radius: 5px;
-    border: 1px solid black;
-    padding: 0.5em;
+body {
+    font-family: "Roboto", ui-sans-serif, system-ui, sans-serif;
 }
 
-.btn {
-    margin: 0.5em;
-}
-
-.container-fluid {
-    overflow: auto;
-}
-
-.footer {
-    clear: both;
+a {
+    text-underline-offset: 2px;
 }

@@ -21,3 +21,15 @@ src/output
 
 # HTTPS Keys
 src/pki/
+
+# Node / frontend tooling
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+.pnpm-store/
+.yarn/
+.cache/
+.eslintcache

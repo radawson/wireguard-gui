@@ -3,115 +3,83 @@
 {% block title %} Setup {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center">
-        <h2 class="mb-0 mt-2">Setup Wizard</h2>
+<div class="space-y-4">
+    <h2 class="text-2xl font-semibold">Setup Wizard</h2>
+    <div class="app-tab-list" role="tablist" aria-label="Wizard tabs">
+        <button id="tab-basic" class="app-tab app-tab-active" type="button" role="tab" aria-selected="true" aria-controls="basic-tab" data-tab-target="basic-tab">Basic</button>
+        <button id="tab-advanced" class="app-tab" type="button" role="tab" aria-selected="false" aria-controls="advanced-tab" data-tab-target="advanced-tab">Advanced</button>
+        <button id="tab-instructions" class="app-tab" type="button" role="tab" aria-selected="false" aria-controls="instructions-tab" data-tab-target="instructions-tab">Instructions</button>
     </div>
-    <hr class="hr" />
-    <div class="container">
 
-        <!-- Tabs navs -->
-        <ul class="nav nav-tabs mb-3" id="wizard" role="tablist">
-            <li class="nav-item" role="presentation">
-                <a data-mdb-tab-init class="nav-link active" id="ex1-tab-1" data-mdb-toggle="tab" href="#basic-tab"
-                    role="tab" aria-controls="basic-tab" aria-selected="true">Basic</a>
-            </li>
-            <li class="nav-item" role="presentation">
-                <a data-mdb-tab-init class="nav-link" id="ex1-tab-2" data-mdb-toggle="tab" href="#advanced-tab"
-                    role="tab" aria-controls="advanced-tab" aria-selected="false">Advanced</a>
-            </li>
-            <li class="nav-item" role="presentation">
-                <a data-mdb-tab-init class="nav-link" id="ex1-tab-3" data-mdb-toggle="tab" href="#instructions-tab"
-                    role="tab" aria-controls="instructions-tab" aria-selected="false">Instructions</a>
-            </li>
-        </ul>
-
-        <!-- Tabs content -->
-        <div class="tab-content" id="wizard-content">
-            <div class="tab-pane fade show active" id="basic-tab" role="tabpanel" aria-labelledby="ex1-tab-1">
-                <!-- Basic tab content -->
-                <form action="{{url_for('wizard.wizard_basic')}}" method="post" id="basicBuildForm">
-                    <h6>Network</h6>
-                    <div class="form-outline" data-mdb-input-init>
-                        <input type="text" class="my-2 form-control" id="name" name="name" value="{{defaults.name}}" />
-                        <label for="name" class="form-label">Network Name</label>
-                    </div>
-                    <div class="form-outline" data-mdb-input-init>
-                        <input type="text" class="my-2 form-control" id="description" name="description" />
-                        <label for="description" class="form-label">Description</label>
-                    </div>
-                    <h6>Base IP Address for Wireguard Network</h6>
-                    <div class="form-outline" data-mdb-input-init>
-                        <input type="text" class="my-2 form-control" id="base_ip" name="base_ip"
-                            value="{{defaults.base_ip}}" />
-                        <label for="base_ip" class="form-label">Base IP</label>
-                    </div>
-                    <div class="form-outline">
-                        <select class="my-2 form-select" data-mdb-select-init id="subnet" name="subnet">
-                            {% for subnet in subnets %}
-                            <option value="{{ subnet['CIDR'] }}" {% if subnet['CIDR']==24 %} selected {% endif %}>{{
-                                subnet['clients'] }}</option>
-                            {% endfor %}
-                        </select>
-                        <label for="subnet" class="form-label select-label">Total Clients</label>
-                    </div>
-                    <input type="hidden" id="sudoPasswordInput" name="sudoPassword">
-                    <button class="btn btn-primary" data-mdb-toggle="modal" data-mdb-target="#sudoPasswordModal"
-                        id="buildButton">Build</button>
-                    <a href="{{url_for('main.index')}}" type="button" class="btn btn-secondary">Cancel</a>
-                </form>
+    <div id="basic-tab" class="app-card wizard-tab" role="tabpanel" aria-labelledby="tab-basic">
+        <form action="{{url_for('wizard.wizard_basic')}}" method="post" id="basicBuildForm" class="space-y-4">
+            <h3 class="font-semibold">Network</h3>
+            <div>
+                <label class="app-label" for="name">Network Name</label>
+                <input type="text" class="app-input" id="name" name="name" value="{{defaults.name}}" />
             </div>
-            <div class="tab-pane fade" id="advanced-tab" role="tabpanel" aria-labelledby="ex1-tab-2">
-                <!-- Advanced tab content -->
-                <form action="{{url_for('wizard.wizard_advanced')}}" method="post" id="advancedBuildForm">
-                    <h6>Base IP Address for Wireguard Network</h6>
-                    <div class="form-outline mb-3" data-mdb-input-init>
-                        <input type="text" class="form-control" id="base_ipA" name="base_ipA" />
-                        <label for="base_ipA" class="form-label">Base IP</label>
-                    </div>
-                    <h6>Generate Server Keys</h6>
-
-                    <div class="form-outline">
-                        <div class="mb-3 input-group" data-mdb-input-init>
-                            <input type="text" class="form-control" id="private_key" name="private_key"
-                                oninput="updatePublicKey()" />
-                            <label for="private_key" class="form-label">Private Key</label>
-                            <button class="btn btn-primary " data-mdb-ripple-init type="button" id="generatePrivateKey"
-                                onclick="generateAndSetPrivateKey()" data-mdb-tooltip-init
-                                title="Generate Private Key" />
-                            <i class="fas fa-key"></i>
-                            </button>
-                        </div>
-                    </div>
-
-                    <div class="form-outline mb-3" data-mdb-input-init>
-                        <input type="text" class="form-control" id="public_key" name="public_key" value="">
-                        <label for="public_key" class="form-label">Public Key</label>
-                    </div>
-                    <button type="submit" method="post" class="btn btn-primary">Build</button>
-                    <a href="{{url_for('main.index')}}" type="button" class="btn btn-secondary">Cancel</a>
-                </form>
+            <div>
+                <label class="app-label" for="description">Description</label>
+                <input type="text" class="app-input" id="description" name="description" />
             </div>
-            <div class="tab-pane fade" id="instructions-tab" role="tabpanel" aria-labelledby="ex1-tab-3">
-                <!-- Instructions tab content -->
-                <h4>Basic Instructions</h4>
-                <p>The wizard will automatically generate a server and network based on the IP address of the machine it
-                    is running on.</p>
-                <p>The lighthouse server will be at the .1 of the network IP range.</p>
-                <p>The default server listen port is {{defaults.base_port}}.</p>
-                <p>Additional peers can be added <a href="{{url_for('peers.peers_all')}}">here</a>.</p>
-                <h4>Advanced Instructions</h4>
-                <strong class="text-danger">Currently Disabled</strong>
-                <p>The wizard will automatically generate a server and network based on the IP address that
-                    is specified.</p>
-
-                <p>Additional peers can be added <a href="{{url_for('peers.peers_all')}}">here</a>.</p>
+            <div>
+                <label class="app-label" for="base_ip">Base IP</label>
+                <input type="text" class="app-input" id="base_ip" name="base_ip" value="{{defaults.base_ip}}" />
             </div>
-        </div>
-        <!-- End Tabbed content -->
+            <div>
+                <label class="app-label" for="subnet">Total Clients</label>
+                <select class="app-input" id="subnet" name="subnet">
+                    {% for subnet in subnets %}
+                    <option value="{{ subnet['CIDR'] }}" {% if subnet['CIDR']==24 %} selected {% endif %}>{{ subnet['clients'] }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="app-label" for="sudoPasswordInput">Sudo Password</label>
+                <input type="password" id="sudoPasswordInput" name="sudoPassword" class="app-input" placeholder="Optional, defaults to config value">
+            </div>
+            <div class="flex gap-2">
+                <button class="app-btn" id="buildButton">Build</button>
+                <a href="{{url_for('main.index')}}" class="app-btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+
+    <div id="advanced-tab" class="app-card wizard-tab hidden" role="tabpanel" aria-labelledby="tab-advanced">
+        <form action="{{url_for('wizard.wizard_advanced')}}" method="post" id="advancedBuildForm" class="space-y-4">
+            <h3 class="font-semibold">Advanced Setup</h3>
+            <div>
+                <label class="app-label" for="base_ipA">Base IP</label>
+                <input type="text" class="app-input" id="base_ipA" name="base_ipA" />
+            </div>
+            <div>
+                <label class="app-label" for="private_key">Private Key</label>
+                <div class="flex gap-2">
+                    <input type="text" class="app-input" id="private_key" name="private_key" oninput="updatePublicKey()" />
+                    <button class="app-btn-secondary" type="button" id="generatePrivateKey" onclick="generateAndSetPrivateKey()">
+                        <i class="fas fa-key"></i>
+                    </button>
+                </div>
+            </div>
+            <div>
+                <label class="app-label" for="public_key">Public Key</label>
+                <input type="text" class="app-input" id="public_key" name="public_key" value="">
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="app-btn">Build</button>
+                <a href="{{url_for('main.index')}}" class="app-btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+
+    <div id="instructions-tab" class="app-card wizard-tab hidden" role="tabpanel" aria-labelledby="tab-instructions">
+        <h4 class="mb-2 text-lg font-semibold">Basic Instructions</h4>
+        <p>The wizard automatically generates a server and network based on the host machine IP.</p>
+        <p>The lighthouse server is assigned to the .1 address in the network range.</p>
+        <p>The default server listen port is {{defaults.base_port}}.</p>
+        <p>Additional peers can be added <a class="underline" href="{{url_for('peers.peers_all')}}">here</a>.</p>
     </div>
 </div>
-
 {%endblock%}
 
 {% block scripts %}
@@ -132,5 +100,24 @@
         }
         document.getElementById('public_key').value = publicKey;
     }
+
+    const tabButtons = Array.from(document.querySelectorAll('[data-tab-target]'));
+    const tabPanels = Array.from(document.querySelectorAll('.wizard-tab'));
+
+    function selectTab(targetId) {
+        tabPanels.forEach((panel) => {
+            const isActive = panel.id === targetId;
+            panel.classList.toggle('hidden', !isActive);
+        });
+        tabButtons.forEach((button) => {
+            const isActive = button.dataset.tabTarget === targetId;
+            button.classList.toggle('app-tab-active', isActive);
+            button.setAttribute('aria-selected', String(isActive));
+        });
+    }
+
+    tabButtons.forEach((button) => {
+        button.addEventListener('click', () => selectTab(button.dataset.tabTarget));
+    });
 </script>
 {% endblock %}

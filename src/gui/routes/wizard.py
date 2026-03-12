@@ -144,7 +144,7 @@ def wizard_basic():
     db.session.commit()
     message += "\nNetwork added to database"
 
-    new_peer.network = new_network.id
+    new_peer.network_id = new_network.id
 
     db.session.commit()
     message += "\nPeer network updated"

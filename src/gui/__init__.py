@@ -1,78 +1,64 @@
-from flask import Flask, render_template, request
-from flask_migrate import Migrate
-from flask_cors import CORS
 import os
+from pathlib import Path
+
+from flask import Flask
+from flask_cors import CORS
+from flask_migrate import Migrate
 import yaml
+
 from .routes import dashboard, main, networks, peers, settings, users, wizard
 
 version = "0.3.3b0"
 
-
-basedir = os.getcwd()
-
-## TEST DATA ##
-peers_data = {
-    "active": 3,
-    "inactive": 1,
-    "lighthouse": 3
-    }
+def _load_config(config_path: str, basedir: str) -> dict:
+    with open(config_path, encoding="utf-8") as config_file:
+        config = yaml.safe_load(config_file) or {}
+    for key, value in config.items():
+        if isinstance(value, str):
+            config[key] = value.format(basedir=basedir)
+    return config
 
 
-def create_app():
-    # Initialize the Flask application
+def create_app(config_path: str | None = None, initialize_side_effects: bool = True):
+    basedir = os.getcwd()
     app = Flask(__name__)
     CORS(app)
     app.basedir = basedir
     app.__version__ = version
 
-    
-    ## CONFIGURATION ##
+    config_file = config_path or "config.yaml"
+    app.config.update(_load_config(config_file, basedir))
+    app.config.setdefault("AUTO_CREATE_DB", True)
 
-    # Read config.yaml
-    with open("config.yaml") as f:
-        config = yaml.safe_load(f)
-    # Replace {basedir} in all keys with the current working directory
-    for key in config:
-        if isinstance(config[key], str):
-            config[key] = config[key].format(basedir=basedir)
-    # Set the configuration from config.yaml
-    app.config.update(config)
+    app.config["LINUX"] = str(os.name) == "posix"
 
-    # Check if this is a linux system
-    if str(os.name) == "posix":
-        app.config["LINUX"] = True
-    else:
-        app.config["LINUX"] = False
-
-
-    # Check if certificates exist and create them if they don't
-    if not os.path.exists(app.config["PKI_CERT_PATH"]):
-        os.makedirs(app.config["PKI_CERT_PATH"])
-    if not os.path.exists(app.config["PKI_CERT_PATH"] + "/" + app.config["PKI_CERT"]):
+    if initialize_side_effects:
         from .routes import helpers
-        helpers.generate_cert(app.config["PKI_CERT_PATH"], app.config["PKI_CERT"], app.config["PKI_KEY"])
-    if not os.path.exists(app.config["PKI_CERT_PATH"] +"/" + app.config["PKI_KEY"]):
-        helpers.generate_cert(app.config["PKI_CERT_PATH"], app.config["PKI_CERT"], app.config["PKI_KEY"])
+
+        cert_path = Path(app.config["PKI_CERT_PATH"])
+        cert_path.mkdir(parents=True, exist_ok=True)
+        cert_file = cert_path / app.config["PKI_CERT"]
+        key_file = cert_path / app.config["PKI_KEY"]
+        if not cert_file.exists() or not key_file.exists():
+            helpers.generate_cert(app.config["PKI_CERT_PATH"], app.config["PKI_CERT"], app.config["PKI_KEY"])
 
     @app.context_processor
     def inject_mode():
         return dict(mode=app.config["MODE"])
 
-    # Initialize the database with the app
-    from .models import db  
+    from .models import db
 
     db.init_app(app)
-    # Initialize Migrate with the app and the database
-    migrate = Migrate(app, db)
+    Migrate(app, db)
 
-    # Create all the database tables within the app context
-    with app.app_context():
-        db.create_all()
+    if app.config.get("AUTO_CREATE_DB", True):
+        with app.app_context():
+            db.create_all()
 
-    # Initialize the login manager with the app
     from flask_login import LoginManager
+
     login_manager = LoginManager()
-    login_manager.login_view = 'user.login'
+    login_manager.login_view = "user.login"
     login_manager.init_app(app)
 
     from .models import User
@@ -81,9 +67,6 @@ def create_app():
     def load_user(user_id):
         return User.query.get(int(user_id))
 
-    ## ROUTES ##
-
-    # Import the blueprints
     app.register_blueprint(dashboard)
     app.register_blueprint(main)
     app.register_blueprint(networks)
@@ -93,5 +76,3 @@ def create_app():
     app.register_blueprint(wizard)
 
     return app
-
-    

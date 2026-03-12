@@ -21,7 +21,7 @@ def test_db_entries():
     peer_load_test_db()
     message = "Database entries loaded successfully!"
     flash(message, "success")
-    return render_template('settings.html')
+    return render_template('settings.html', config=current_app.config)
 
 @settings.route('/purge_db', methods=['POST'])
 @login_required
@@ -32,4 +32,4 @@ def purge_db():
     db.session.commit()
     message = "Database purged successfully!"
     flash(message, "success")
-    return render_template('settings.html')
+    return render_template('settings.html', config=current_app.config)

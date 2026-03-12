@@ -3,20 +3,11 @@
 {% block title %}Profile{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center">
-        <h2 class="mb-0">User Profile</h2>
-    </div>
-    <hr class="hr" />
-    <div class="row card-group">
-        <div class="col-md">
-            <div class="card">
-                <div class="card-body">
-                    {{current_user.username}}
-                    {{current_user.email}}
-                </div>
-            </div>
-        </div>
+<div class="app-card">
+    <h2 class="mb-4 text-2xl font-semibold">User Profile</h2>
+    <div class="space-y-2 text-sm">
+        <p><strong>Username:</strong> {{current_user.username}}</p>
+        <p><strong>Email:</strong> {{current_user.email}}</p>
     </div>
 </div>
 {% endblock %}
