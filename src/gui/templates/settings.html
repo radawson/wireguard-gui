@@ -21,15 +21,32 @@
     <section class="app-card">
         <h3 class="mb-3 text-lg font-semibold">Runtime Configuration</h3>
         <p class="mb-2 text-sm text-slate-600">Changing these values only updates the current running instance.</p>
-        <p class="mb-4 text-sm text-slate-600">Update `config.yaml` to persistently update these values.</p>
-        <form method="post" class="grid grid-cols-1 gap-3 md:grid-cols-2">
-            {% for key, value in config.items() %}
-            <div>
-                <label class="app-label" for="{{key}}">{{key}}</label>
-                <input type="text" class="app-input" id="{{key}}" name="{{key}}" value="{{value}}">
+        <p class="mb-2 text-sm text-slate-600">Update `config.yaml` to persistently update these values.</p>
+        <p class="mb-4 text-sm text-slate-600">Only a safe subset of settings is editable here to avoid breaking runtime internals.</p>
+        <form method="post" class="space-y-5">
+            {% for section in runtime_config_sections %}
+            <div class="rounded-lg border border-slate-200 bg-white p-4">
+                <h4 class="text-base font-semibold text-slate-800">{{ section.title }}</h4>
+                <p class="mb-3 text-sm text-slate-600">{{ section.description }}</p>
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    {% for field in section.fields %}
+                    <div>
+                        <label class="app-label" for="{{ field.key }}">{{ field.label }}</label>
+                        {% if field.type == 'select' %}
+                        <select class="app-input" id="{{ field.key }}" name="{{ field.key }}">
+                            {% for option in field.choices %}
+                            <option value="{{ option }}" {% if option == field.value %}selected{% endif %}>{{ option }}</option>
+                            {% endfor %}
+                        </select>
+                        {% else %}
+                        <input type="{{ field.type }}" class="app-input" id="{{ field.key }}" name="{{ field.key }}" value="{{ field.value }}">
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
             </div>
             {% endfor %}
-            <div class="md:col-span-2">
+            <div>
                 <button type="submit" class="app-btn">Update</button>
             </div>
         </form>

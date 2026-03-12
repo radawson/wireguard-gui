@@ -21,6 +21,13 @@
                 <label class="inline-flex items-center gap-2 text-sm">
                     <input type="checkbox" id="lighthouse" name="lighthouse" {% if peer.lighthouse %} checked {% endif %} />
                     This is a network lighthouse
+                    <span class="relative ml-1 inline-flex group">
+                        <i class="fas fa-circle-question cursor-help text-sm text-slate-400 hover:text-slate-600" aria-hidden="true"></i>
+                        <span class="absolute left-0 top-6 z-50 hidden w-64 rounded-lg border border-slate-200 bg-slate-800 p-2 text-xs text-white shadow-lg group-hover:block">
+                            This peer is the reachable server for the network; it has a public endpoint and listen port so other peers can connect.
+                            <a href="{{ url_for('main.help_page') }}#lighthouse" class="mt-1 block font-medium text-sky-300 underline hover:text-sky-200">What's this?</a>
+                        </span>
+                    </span>
                 </label>
                 <div>
                     <label class="app-label" for="private_key">Private Key</label>
@@ -36,15 +43,39 @@
                     <input type="text" class="app-input" id="public_key" name="public_key" value="{{ peer.public_key }}" readonly />
                 </div>
                 <div>
-                    <label class="app-label" for="network_ip">VPN IP</label>
+                    <label class="app-label" for="network_ip">VPN IP
+                        <span class="relative ml-1 inline-flex group">
+                            <i class="fas fa-circle-question cursor-help text-sm text-slate-400 hover:text-slate-600" aria-hidden="true"></i>
+                            <span class="absolute left-0 top-6 z-50 hidden w-64 rounded-lg border border-slate-200 bg-slate-800 p-2 text-xs text-white shadow-lg group-hover:block">
+                                The IP address assigned to this peer on the tunnel (e.g. 10.10.11.5). Must be in the network's range.
+                                <a href="{{ url_for('main.help_page') }}#vpn-ip" class="mt-1 block font-medium text-sky-300 underline hover:text-sky-200">What's this?</a>
+                            </span>
+                        </span>
+                    </label>
                     <select class="app-input" name="network_ip" id="network_ip" onchange="updateConfigCard()"></select>
                 </div>
                 <div>
-                    <label class="app-label" for="endpoint_ip">Endpoint IP</label>
+                    <label class="app-label" for="endpoint_ip">Endpoint IP
+                        <span class="relative ml-1 inline-flex group">
+                            <i class="fas fa-circle-question cursor-help text-sm text-slate-400 hover:text-slate-600" aria-hidden="true"></i>
+                            <span class="absolute left-0 top-6 z-50 hidden w-64 rounded-lg border border-slate-200 bg-slate-800 p-2 text-xs text-white shadow-lg group-hover:block">
+                                The reachable address of the other side of the tunnel. For clients, usually the lighthouse's public IP.
+                                <a href="{{ url_for('main.help_page') }}#endpoint" class="mt-1 block font-medium text-sky-300 underline hover:text-sky-200">What's this?</a>
+                            </span>
+                        </span>
+                    </label>
                     <input type="text" class="app-input" id="endpoint_ip" name="endpoint_ip" value="{{ peer.endpoint_host }}" onchange="updateConfigCard()">
                 </div>
                 <div>
-                    <label class="app-label" for="listen_port">Listen Port</label>
+                    <label class="app-label" for="listen_port">Listen Port
+                        <span class="relative ml-1 inline-flex group">
+                            <i class="fas fa-circle-question cursor-help text-sm text-slate-400 hover:text-slate-600" aria-hidden="true"></i>
+                            <span class="absolute left-0 top-6 z-50 hidden w-64 rounded-lg border border-slate-200 bg-slate-800 p-2 text-xs text-white shadow-lg group-hover:block">
+                                UDP port this peer listens on (for lighthouses). Other peers use this with the endpoint IP to connect.
+                                <a href="{{ url_for('main.help_page') }}#endpoint" class="mt-1 block font-medium text-sky-300 underline hover:text-sky-200">What's this?</a>
+                            </span>
+                        </span>
+                    </label>
                     <input type="text" class="app-input" id="listen_port" name="listen_port" value="{{ peer.listen_port }}" onchange="updateConfigCard()">
                 </div>
                 <div>
@@ -52,7 +83,15 @@
                     <input type="text" class="app-input" id="dns" name="dns" value="{{ peer.dns }}" onchange="updateConfigCard()">
                 </div>
                 <div>
-                    <label class="app-label" for="network">Network</label>
+                    <label class="app-label" for="network">Network
+                        <span class="relative ml-1 inline-flex group">
+                            <i class="fas fa-circle-question cursor-help text-sm text-slate-400 hover:text-slate-600" aria-hidden="true"></i>
+                            <span class="absolute left-0 top-6 z-50 hidden w-64 rounded-lg border border-slate-200 bg-slate-800 p-2 text-xs text-white shadow-lg group-hover:block">
+                                The WireGuard VPN (tunnel) this peer belongs to. Each network has a base IP range and adapter.
+                                <a href="{{ url_for('main.help_page') }}#network" class="mt-1 block font-medium text-sky-300 underline hover:text-sky-200">What's this?</a>
+                            </span>
+                        </span>
+                    </label>
                     <select class="app-input" name="network" id="network">
                         {% for network in networks %}
                         <option value="{{ network.id }}" {% if network.id==peer.network_id %}selected{% endif %}>
@@ -62,7 +101,15 @@
                     </select>
                 </div>
                 <div>
-                    <label class="app-label" for="preshared_key1">Preshared Key</label>
+                    <label class="app-label" for="preshared_key1">Preshared Key
+                        <span class="relative ml-1 inline-flex group">
+                            <i class="fas fa-circle-question cursor-help text-sm text-slate-400 hover:text-slate-600" aria-hidden="true"></i>
+                            <span class="absolute left-0 top-6 z-50 hidden w-64 rounded-lg border border-slate-200 bg-slate-800 p-2 text-xs text-white shadow-lg group-hover:block">
+                                Optional extra symmetric key for this peer pair. WireGuard supports it for additional security.
+                                <a href="{{ url_for('main.help_page') }}#preshared-key" class="mt-1 block font-medium text-sky-300 underline hover:text-sky-200">What's this?</a>
+                            </span>
+                        </span>
+                    </label>
                     <div class="flex gap-2">
                         <input type="text" class="app-input" id="preshared_key1" name="preshared_key" value="{{ peer.preshared_key }}" onchange="updateConfigCard()" />
                         <button class="app-btn-secondary" type="button" onclick="generateAndSetPresharedKey(1)">

@@ -2,6 +2,7 @@ from flask import (
     Blueprint,
     current_app,
     flash,
+    g,
     jsonify,
     redirect,
     render_template,
@@ -37,12 +38,19 @@ def query_all_peers(network_id=None):
         peer_query = peer_service.list_peers(int(network_id))
     else:
         peer_query = peer_service.list_peers()
+    if current_app.config.get("MODE") != "server":
+        return peer_query
+    status_by_adapter = {}
     for peer in peer_query:
         peer.public_key = wg_adapter.get_public_key(peer.private_key)
         network = helpers.get_network(peer.network_id)
         if network.name == "Invalid Network placeholder":
             continue
-        current_peers = helpers.get_peers_status(network.adapter_name)
+        if network.adapter_name not in status_by_adapter:
+            status_by_adapter[network.adapter_name] = helpers.get_peers_status(
+                network.adapter_name
+            )
+        current_peers = status_by_adapter[network.adapter_name]
         for key in current_peers:
             if str(peer.public_key) == str(key):
                 if "latest_handshake" in current_peers[str(peer.public_key)]:
@@ -70,6 +78,12 @@ def query_all_networks():
 def peers_all():
     network_id = request.args.get("network_id")
     peer_list = query_all_peers(network_id)
+    if getattr(g, "wg_status_unavailable", False):
+        flash(
+            "Live WireGuard status is unavailable (sudo/WireGuard command check failed). "
+            "Showing database values only.",
+            "warning",
+        )
     return render_template("peers.html", peer_list=peer_list)
 
 

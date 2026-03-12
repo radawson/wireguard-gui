@@ -93,8 +93,15 @@ def wizard_basic():
     adapters = helpers.get_adapter_names()
     print(f"Adapters found:{adapters}")
 
-    post_up_string = f"iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o {adapters[0]} -j MASQUERADE"
-    post_down_string = f"iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o {adapters[0]} -j MASQUERADE"
+    uplink_adapter = helpers.get_uplink_adapter()
+    post_up_string = (
+        f"iptables -A FORWARD -i {adapter_name} -j ACCEPT; "
+        f"iptables -t nat -A POSTROUTING -o {uplink_adapter} -j MASQUERADE"
+    )
+    post_down_string = (
+        f"iptables -D FORWARD -i {adapter_name} -j ACCEPT; "
+        f"iptables -t nat -D POSTROUTING -o {uplink_adapter} -j MASQUERADE"
+    )
     new_peer = Peer(
         active = False,
         description="Auto-generated peer for the lighthouse",
@@ -153,7 +160,7 @@ def wizard_basic():
         # Create the adapter configuration file
         adapter_string = helpers.config_build(new_peer, new_network)
 
-        if helpers.config_save(adapter_string, "server", "wg0.conf"):
+        if helpers.config_save(adapter_string, "server", f"{adapter_name}.conf"):
             message += "\nNetwork config saved successfully"
         else:
             message += "\nError creating network config file"
@@ -163,16 +170,16 @@ def wizard_basic():
         if helpers.check_wireguard(sudo_password):
             try:
                 helpers.run_sudo(
-                    f"cp {current_app.basedir}/output/server/wg0.conf /etc/wireguard/wg0.conf",
+                    f"cp {current_app.basedir}/output/server/{adapter_name}.conf /etc/wireguard/{adapter_name}.conf",
                     sudo_password,
                 )
             except Exception as e:
                 print(e)
                 message += (
-                    "\nError copying configuration file to /etc/wireguard/wg0.conf"
+                    f"\nError copying configuration file to /etc/wireguard/{adapter_name}.conf"
                 )
             else:
-                message += "\nConfiguration file copied to /etc/wireguard/wg0.conf"
+                message += f"\nConfiguration file copied to /etc/wireguard/{adapter_name}.conf"
         else:
             message += "\nWireguard is not installed on this machine"
 

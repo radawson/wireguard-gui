@@ -31,7 +31,15 @@
                 <input type="text" class="app-input" id="public_key" name="public_key" readonly />
             </div>
             <div>
-                <label class="app-label" for="lighthouse">Lighthouse</label>
+                <label class="app-label" for="lighthouse">Lighthouse
+                    <span class="relative ml-1 inline-flex group">
+                        <i class="fas fa-circle-question cursor-help text-sm text-slate-400 hover:text-slate-600" aria-hidden="true"></i>
+                        <span class="absolute left-0 top-6 z-50 hidden w-64 rounded-lg border border-slate-200 bg-slate-800 p-2 text-xs text-white shadow-lg group-hover:block">
+                            The peer that acts as the reachable server for this network (has a public IP and listen port). Other peers connect to it.
+                            <a href="{{ url_for('main.help_page') }}#lighthouse" class="mt-1 block font-medium text-sky-300 underline hover:text-sky-200">What's this?</a>
+                        </span>
+                    </span>
+                </label>
                 <select class="app-input" id="lighthouse" name="lighthouse">
                     <option value="">None</option>
                     {% for lighthouse in lighthouses %}
@@ -52,7 +60,15 @@
                 </select>
             </div>
             <div>
-                <label class="app-label" for="adapter_name">Host Adapter Name</label>
+                <label class="app-label" for="adapter_name">Host Adapter Name
+                    <span class="relative ml-1 inline-flex group">
+                        <i class="fas fa-circle-question cursor-help text-sm text-slate-400 hover:text-slate-600" aria-hidden="true"></i>
+                        <span class="absolute left-0 top-6 z-50 hidden w-64 rounded-lg border border-slate-200 bg-slate-800 p-2 text-xs text-white shadow-lg group-hover:block">
+                            The kernel interface name for this tunnel on the server (e.g. wg0, wg1). One network uses one adapter.
+                            <a href="{{ url_for('main.help_page') }}#adapter" class="mt-1 block font-medium text-sky-300 underline hover:text-sky-200">What's this?</a>
+                        </span>
+                    </span>
+                </label>
                 <select class="app-input" id="adapter_name" name="adapter_name">
                     {% for adapter in adapters %}
                     <option value="{{ adapter }}" {% if adapter==network.adapter_name %}selected{% endif %}>{{ adapter }}</option>
@@ -64,11 +80,27 @@
                 <input type="text" class="app-input" id="dns" name="dns_server" value="{{ network.dns_server }}" />
             </div>
             <div>
-                <label class="app-label" for="allowed_ips">Allowed IPs</label>
+                <label class="app-label" for="allowed_ips">Allowed IPs
+                    <span class="relative ml-1 inline-flex group">
+                        <i class="fas fa-circle-question cursor-help text-sm text-slate-400 hover:text-slate-600" aria-hidden="true"></i>
+                        <span class="absolute left-0 top-6 z-50 hidden w-64 rounded-lg border border-slate-200 bg-slate-800 p-2 text-xs text-white shadow-lg group-hover:block">
+                            CIDR ranges that tell WireGuard which traffic to send over the tunnel (e.g. 10.10.11.0/24).
+                            <a href="{{ url_for('main.help_page') }}#allowed-ips" class="mt-1 block font-medium text-sky-300 underline hover:text-sky-200">What's this?</a>
+                        </span>
+                    </span>
+                </label>
                 <input type="text" class="app-input" id="allowed_ips" name="allowed_ips" value="{{ network.allowed_ips }}" />
             </div>
             <div>
-                <label class="app-label" for="persistent_keepalive">Persistent Keep-Alive</label>
+                <label class="app-label" for="persistent_keepalive">Persistent Keep-Alive
+                    <span class="relative ml-1 inline-flex group">
+                        <i class="fas fa-circle-question cursor-help text-sm text-slate-400 hover:text-slate-600" aria-hidden="true"></i>
+                        <span class="absolute left-0 top-6 z-50 hidden w-64 rounded-lg border border-slate-200 bg-slate-800 p-2 text-xs text-white shadow-lg group-hover:block">
+                            Interval (seconds) to send keepalives so NAT/firewalls keep the path open. Common value: 25.
+                            <a href="{{ url_for('main.help_page') }}#persistent-keepalive" class="mt-1 block font-medium text-sky-300 underline hover:text-sky-200">What's this?</a>
+                        </span>
+                    </span>
+                </label>
                 <input type="number" class="app-input" id="persistent_keepalive" name="persistent_keepalive" value="{{ network.persistent_keepalive }}" />
             </div>
             <div class="md:col-span-2">

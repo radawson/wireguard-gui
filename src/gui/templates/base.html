@@ -40,6 +40,9 @@
                     <li>
                         <a class="app-nav-link {% if request.endpoint == 'main.about' %}app-nav-link-active{% endif %}" href="{{ url_for('main.about') }}">About</a>
                     </li>
+                    <li>
+                        <a class="app-nav-link {% if request.endpoint == 'main.help_page' %}app-nav-link-active{% endif %}" href="{{ url_for('main.help_page') }}">Help</a>
+                    </li>
                 </ul>
             </div>
             <div class="flex items-center gap-3 text-sm">

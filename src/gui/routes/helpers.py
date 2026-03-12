@@ -5,7 +5,7 @@ import socket
 from os.path import exists
 
 import psutil
-from flask import current_app
+from flask import current_app, g, has_request_context
 
 from gui.errors import CommandExecutionError
 from gui.models import Network, Peer, db
@@ -76,8 +76,15 @@ def enable_ip_forwarding_v4(sudo_password):
     message = ""
     try:
         run_sudo("sysctl -w net.ipv4.ip_forward=1", sudo_password)
-        run_sudo("sysctl -p", sudo_password)
-        message += f"\nIPv4 forwarding enabled"
+        message += "\nIPv4 forwarding enabled (runtime)"
+        # Persist forwarding in a distro-agnostic location and reload all sysctl settings.
+        run_sudo("mkdir -p /etc/sysctl.d", sudo_password)
+        run_sudo(
+            'sh -c "echo net.ipv4.ip_forward=1 > /etc/sysctl.d/99-wireguard-gui.conf"',
+            sudo_password,
+        )
+        run_sudo("sysctl --system", sudo_password)
+        message += "\nIPv4 forwarding persistence updated"
     except CommandExecutionError as e:
         message += f"\nError enabling ipv4 forwarding: {e}"
     return message
@@ -100,6 +107,26 @@ def get_adapter_names():
         if adapter != "lo":
             adapter_names.append(adapter)
     return adapter_names
+
+
+def get_uplink_adapter():
+    # Prefer the default route interface when available.
+    try:
+        default_route = run_cmd("ip route show default").splitlines()
+        for line in default_route:
+            match = re.search(r"\bdev\s+(\S+)", line)
+            if match:
+                return match.group(1)
+    except CommandExecutionError:
+        pass
+
+    # Fallback to first non-virtual adapter.
+    virtual_prefixes = ("wg", "docker", "br-", "veth", "virbr", "tun")
+    for adapter in get_adapter_names():
+        if adapter.startswith(virtual_prefixes):
+            continue
+        return adapter
+    return "eth0"
 
 def get_available_ip(network_id: int = 0) -> dict:
     if network_id == 0:
@@ -162,7 +189,14 @@ def get_peer_count(network_id: int) -> int:
 def get_peers_status(network_adapter="all", sudo_password=""):
     if not current_app.config["LINUX"]:
         return {}
-    output = run_sudo(f"wg show {network_adapter}", sudo_password)
+    try:
+        output = run_sudo(f"wg show {network_adapter}", sudo_password)
+    except CommandExecutionError as exc:
+        # Do not break page rendering when sudo credentials are unavailable.
+        current_app.logger.warning("Unable to read WireGuard status: %s", exc)
+        if has_request_context():
+            g.wg_status_unavailable = True
+        return {}
     return parse_wg_output(output)
 
 
@@ -255,7 +289,9 @@ def run_cmd(command) -> str:
     return run_command(command).stdout
 
 
-def run_sudo(command: str, password: str) -> str:
+def run_sudo(command: str, password: str = "") -> str:
     if not current_app.config["LINUX"]:
         return "Command line options not implemented for Windows"
+    if not password:
+        password = current_app.config.get("SUDO_PASSWORD", "")
     return run_sudo_command(command, password).stdout

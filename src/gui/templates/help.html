@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block title %} Help — WireGuard terms {% endblock %}
+
+{% block content %}
+<div class="app-card space-y-6">
+    <h2 class="text-2xl font-semibold">Help: WireGuard concepts and terms</h2>
+    <p class="text-slate-600">Definitions of terms used in this app and in WireGuard. Use the index below to jump to a term.</p>
+
+    <nav aria-label="Term index" class="rounded-lg border border-slate-200 bg-slate-50 p-4">
+        <h3 class="mb-2 font-semibold text-slate-800">Index</h3>
+        <ul class="flex flex-wrap gap-x-4 gap-y-1 text-sm">
+            <li><a class="text-sky-600 underline hover:text-sky-800" href="#peer">Peer</a></li>
+            <li><a class="text-sky-600 underline hover:text-sky-800" href="#network">Network</a></li>
+            <li><a class="text-sky-600 underline hover:text-sky-800" href="#adapter">Adapter (Host Adapter Name)</a></li>
+            <li><a class="text-sky-600 underline hover:text-sky-800" href="#lighthouse">Lighthouse</a></li>
+            <li><a class="text-sky-600 underline hover:text-sky-800" href="#keys">Private key &amp; Public key</a></li>
+            <li><a class="text-sky-600 underline hover:text-sky-800" href="#allowed-ips">Allowed IPs</a></li>
+            <li><a class="text-sky-600 underline hover:text-sky-800" href="#endpoint">Endpoint</a></li>
+            <li><a class="text-sky-600 underline hover:text-sky-800" href="#preshared-key">Preshared key</a></li>
+            <li><a class="text-sky-600 underline hover:text-sky-800" href="#persistent-keepalive">Persistent keep-alive</a></li>
+            <li><a class="text-sky-600 underline hover:text-sky-800" href="#vpn-ip">VPN IP &amp; Base IP</a></li>
+        </ul>
+    </nav>
+
+    <section id="peer" class="scroll-mt-4">
+        <h3 class="text-lg font-semibold text-slate-800">Peer</h3>
+        <p>A <strong>peer</strong> is one participant in a WireGuard VPN: a device or node with its own keypair and an address on the tunnel. In this app, the <strong>Peers</strong> section lists the devices you add to your networks. Each peer has a private key (and derived public key), a VPN IP, optional endpoint and listen port, and belongs to one network. You can mark one peer per network as the <strong>lighthouse</strong> (the reachable server others connect to).</p>
+    </section>
+
+    <section id="network" class="scroll-mt-4">
+        <h3 class="text-lg font-semibold text-slate-800">Network</h3>
+        <p>A <strong>network</strong> in this app is one WireGuard VPN (one tunnel). It is defined by a name, a base IP and subnet (e.g. 10.10.11.0/24), a host <strong>adapter</strong> name, DNS, and options like allowed IPs and persistent keep-alive. Peers belong to a network; the network is tied to a single WireGuard interface (adapter) on the server.</p>
+    </section>
+
+    <section id="adapter" class="scroll-mt-4">
+        <h3 class="text-lg font-semibold text-slate-800">Adapter (Host Adapter Name)</h3>
+        <p>The <strong>adapter</strong> (or <strong>host adapter name</strong>) is the kernel interface name for the WireGuard tunnel on this server, e.g. <code class="rounded bg-slate-200 px-1">wg0</code> or <code class="rounded bg-slate-200 px-1">wg1</code>. One network maps to one adapter. Commands like <code class="rounded bg-slate-200 px-1">wg-quick up wg0</code> bring that tunnel up. When you choose "Host Adapter Name" in the network form, you are selecting which interface this network uses.</p>
+    </section>
+
+    <section id="lighthouse" class="scroll-mt-4">
+        <h3 class="text-lg font-semibold text-slate-800">Lighthouse</h3>
+        <p>In this app, a <strong>lighthouse</strong> is the peer that acts as the reachable server for a network: it has a public endpoint (IP and listen port) and stays online so other peers can connect to it. You designate one peer per network as the lighthouse; other peers use it as their single <code class="rounded bg-slate-200 px-1">[Peer]</code> endpoint in their generated config.</p>
+    </section>
+
+    <section id="keys" class="scroll-mt-4">
+        <h3 class="text-lg font-semibold text-slate-800">Private key &amp; Public key</h3>
+        <p>WireGuard uses a <strong>private key</strong> (secret, never shared) and a <strong>public key</strong> (derived from it, shared with other peers). Each peer and each network interface has its own keypair. The app can generate a private key for you; the public key is shown as "derived" and is what you put in other peers' <code class="rounded bg-slate-200 px-1">[Peer]</code> stanzas.</p>
+    </section>
+
+    <section id="allowed-ips" class="scroll-mt-4">
+        <h3 class="text-lg font-semibold text-slate-800">Allowed IPs</h3>
+        <p><strong>Allowed IPs</strong> is a comma-separated list of CIDR ranges (e.g. <code class="rounded bg-slate-200 px-1">10.10.11.0/24</code>) that tell WireGuard which traffic to send over the tunnel for that peer. It acts as a routing rule: only traffic destined for those ranges goes through the VPN. For a full tunnel, you typically use the network's subnet.</p>
+    </section>
+
+    <section id="endpoint" class="scroll-mt-4">
+        <h3 class="text-lg font-semibold text-slate-800">Endpoint</h3>
+        <p>The <strong>endpoint</strong> is the reachable address of the other side of the tunnel: host (or IP) plus port. In this app it appears as "Endpoint IP" and "Listen Port" on a peer. For client peers, the endpoint is usually the lighthouse's public IP and listen port so they know where to connect.</p>
+    </section>
+
+    <section id="preshared-key" class="scroll-mt-4">
+        <h3 class="text-lg font-semibold text-slate-800">Preshared key</h3>
+        <p>A <strong>preshared key (PSK)</strong> is an optional extra symmetric key used between one pair of peers. WireGuard supports it for additional security (e.g. post-quantum). In the peer form you can leave it blank or generate one; if set, it is included in the generated config.</p>
+    </section>
+
+    <section id="persistent-keepalive" class="scroll-mt-4">
+        <h3 class="text-lg font-semibold text-slate-800">Persistent keep-alive</h3>
+        <p><strong>Persistent keep-alive</strong> is an interval in seconds. When set, the peer sends a small packet at that interval so that NATs and firewalls keep the path open. Use it for peers behind NAT (e.g. laptops or home clients) so the server can reach them. A common value is <code class="rounded bg-slate-200 px-1">25</code>.</p>
+    </section>
+
+    <section id="vpn-ip" class="scroll-mt-4">
+        <h3 class="text-lg font-semibold text-slate-800">VPN IP &amp; Base IP</h3>
+        <p><strong>VPN IP</strong> (or "Address" in config) is the IP address assigned to this peer on the tunnel (e.g. 10.10.11.5). <strong>Base IP</strong> is the network's base range (e.g. 10.10.11.0) and the subnet (e.g. /24) defines how many addresses the network has. The app uses the base IP and subnet to offer you valid VPN IPs when adding a peer.</p>
+    </section>
+</div>
+{% endblock %}
