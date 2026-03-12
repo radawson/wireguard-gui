@@ -33,9 +33,10 @@ def run_command(command: str) -> CommandResult:
 
 def run_sudo_command(command: str, password: str) -> CommandResult:
     cmd_list = ["sudo", "-S"] + _build_command(command)
+    stdin_password = password if password.endswith("\n") else password + "\n"
     result = sp.run(
         cmd_list,
-        input=password,
+        input=stdin_password,
         stderr=sp.PIPE,
         stdout=sp.PIPE,
         text=True,

@@ -1,5 +1,7 @@
+import os
 import re
 import shlex
+import tempfile
 
 from wireguard_tools import WireguardDevice, WireguardKey
 
@@ -59,12 +61,24 @@ def add_peer(
     cmd = f"wg set {shlex.quote(iface)} peer {shlex.quote(key)} allowed-ips {shlex.quote(ips)}"
     if endpoint is not None:
         cmd += f" endpoint {shlex.quote(endpoint)}"
-    if preshared_key is not None:
-        _validate_key(preshared_key)
-        cmd += f" preshared-key <(echo {shlex.quote(preshared_key)})"
-    if persistent_keepalive is not None:
-        cmd += f" persistent-keepalive {int(persistent_keepalive)}"
-    return run_sudo_command(cmd, sudo_password).stdout
+    psk_fd = None
+    psk_path = None
+    try:
+        if preshared_key is not None:
+            _validate_key(preshared_key)
+            psk_fd, psk_path = tempfile.mkstemp(prefix="wg_psk_")
+            os.write(psk_fd, preshared_key.encode())
+            os.close(psk_fd)
+            psk_fd = None
+            cmd += f" preshared-key {shlex.quote(psk_path)}"
+        if persistent_keepalive is not None:
+            cmd += f" persistent-keepalive {int(persistent_keepalive)}"
+        return run_sudo_command(cmd, sudo_password).stdout
+    finally:
+        if psk_fd is not None:
+            os.close(psk_fd)
+        if psk_path is not None:
+            os.unlink(psk_path)
 
 
 def remove_peer(adapter_name: str, public_key: str, sudo_password: str) -> str:

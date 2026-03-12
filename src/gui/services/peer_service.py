@@ -4,6 +4,7 @@ from gui.errors import EntityNotFoundError, ValidationError
 from gui.integrations.wireguard import adapter as wg_adapter
 from gui.models import db, Network, Peer
 from gui.repositories.peer_repository import PeerRepository
+from gui.services import runtime_sync_service
 from wireguard_tools import WireguardKey
 
 
@@ -125,10 +126,12 @@ def activate_peer(peer_id: int, sudo_password: str | None = None) -> str:
         return "Peer activated in database"
 
     secret = sudo_password or current_app.config["SUDO_PASSWORD"]
-    try:
-        peer_public_key = peer.get_public_key()
-    except (ValueError, TypeError) as exc:
-        raise ValidationError("Invalid WireGuard private key") from exc
+    peer_public_key = runtime_sync_service.get_runtime_public_key(peer)
+    if not peer_public_key:
+        try:
+            peer_public_key = peer.get_public_key()
+        except (ValueError, TypeError) as exc:
+            raise ValidationError("Invalid WireGuard private key") from exc
     wg_adapter.add_peer(
         network.adapter_name,
         peer_public_key,

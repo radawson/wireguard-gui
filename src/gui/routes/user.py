@@ -12,7 +12,7 @@ def login():
     if request.method == "POST":
         username = (request.form.get("name") or "").strip().lower()
         email = request.form.get('email')
-        password = (request.form.get('password') or "").strip()
+        password = request.form.get('password') or ""
         remember = True if request.form.get('remember') else False
         if not username or not password:
             flash("Username and password are required.")
@@ -41,8 +41,8 @@ def register():
     if request.method == "POST":
         email = (request.form.get("email") or "").strip()
         username = (request.form.get("name") or "").strip().lower()
-        password = (request.form.get("password") or "").strip()
-        confirm_password = (request.form.get("confirm_password") or "").strip()
+        password = request.form.get("password") or ""
+        confirm_password = request.form.get("confirm_password") or ""
 
         if not email:
             flash("Email is required")

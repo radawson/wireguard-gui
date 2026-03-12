@@ -69,6 +69,17 @@ class TestBuildPeerUAPI:
         lines = dev._build_peer_uapi(peer)
         assert "persistent_keepalive_interval=25" in lines
 
+    def test_ipv6_endpoint_uses_brackets(self):
+        dev = _make_device()
+        peer = WireguardPeer(
+            public_key=WireguardKey.generate(),
+            endpoint_host=IPv6Address("::1"),
+            endpoint_port=51820,
+            allowed_ips=[],
+        )
+        lines = dev._build_peer_uapi(peer)
+        assert "endpoint=[::1]:51820" in lines
+
 
 class TestSetConfigSerialization:
     def test_set_config_includes_replace_peers(self):
@@ -200,3 +211,14 @@ class TestResolveEndpoint:
         )
         with pytest.raises(RuntimeError, match="Unable to resolve"):
             WireguardUAPIDevice._resolve_endpoint(peer)
+
+    def test_invalid_retries_env_falls_back_to_default(self, monkeypatch):
+        monkeypatch.setenv("WG_ENDPOINT_RESOLUTION_RETRIES", "notanumber")
+        peer = WireguardPeer(
+            public_key=WireguardKey.generate(),
+            endpoint_host="localhost",
+            endpoint_port=51820,
+            allowed_ips=[],
+        )
+        result = WireguardUAPIDevice._resolve_endpoint(peer)
+        assert result is not None

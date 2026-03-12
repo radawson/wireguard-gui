@@ -44,7 +44,7 @@ def _parse_endpoint(value: str) -> tuple[str, int]:
 
 def _split_comma_list(value: str) -> list[str]:
     """Split a comma-separated value list, tolerating optional whitespace."""
-    return [item.strip() for item in value.split(",")]
+    return [item for item in (s.strip() for s in value.split(",")) if item]
 
 
 def _ipaddress_or_host(

@@ -10,7 +10,7 @@ from __future__ import annotations
 import os
 import socket
 import time
-from ipaddress import ip_address, ip_interface
+from ipaddress import IPv6Address, ip_address, ip_interface
 from pathlib import Path
 from typing import TYPE_CHECKING, Iterator
 
@@ -119,7 +119,13 @@ class WireguardUAPIDevice(WireguardDevice):
         host = peer.endpoint_host
         if isinstance(host, str):
             retries_env = os.environ.get("WG_ENDPOINT_RESOLUTION_RETRIES", "15")
-            max_retries = float("inf") if retries_env == "infinity" else int(retries_env)
+            if retries_env == "infinity":
+                max_retries = float("inf")
+            else:
+                try:
+                    max_retries = int(retries_env)
+                except ValueError:
+                    max_retries = 15
             attempt = 0
             while True:
                 try:
@@ -143,7 +149,13 @@ class WireguardUAPIDevice(WireguardDevice):
         lines = [f"public_key={peer.public_key.hex}"]
         endpoint = self._resolve_endpoint(peer)
         if endpoint is not None:
-            lines.append(f"endpoint={endpoint[0]}:{endpoint[1]}")
+            host_str = endpoint[0]
+            try:
+                if isinstance(IPv6Address(host_str), IPv6Address):
+                    host_str = f"[{host_str}]"
+            except ValueError:
+                pass
+            lines.append(f"endpoint={host_str}:{endpoint[1]}")
         if peer.preshared_key is not None:
             lines.append(f"preshared_key={peer.preshared_key.hex}")
         if peer.persistent_keepalive is not None:

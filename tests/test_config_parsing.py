@@ -44,6 +44,15 @@ class TestSplitCommaList:
     def test_single(self):
         assert _split_comma_list("10.0.0.1/32") == ["10.0.0.1/32"]
 
+    def test_trailing_comma(self):
+        assert _split_comma_list("a,b,") == ["a", "b"]
+
+    def test_double_comma(self):
+        assert _split_comma_list("a,,b") == ["a", "b"]
+
+    def test_empty_string(self):
+        assert _split_comma_list("") == []
+
 
 IPV6_CONFIG = """\
 [Interface]

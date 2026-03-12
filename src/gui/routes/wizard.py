@@ -3,7 +3,6 @@ import json
 
 from flask_login import login_required
 from gui.routes import helpers
-from gui.errors import ValidationError
 from flask import (
     Blueprint,
     current_app,
