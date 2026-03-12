@@ -10,10 +10,13 @@ users = Blueprint("user", __name__)
 @users.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        username = request.form.get("name").lower()
+        username = (request.form.get("name") or "").strip().lower()
         email = request.form.get('email')
-        password = request.form.get('password')
+        password = request.form.get('password') or ""
         remember = True if request.form.get('remember') else False
+        if not username or not password:
+            flash("Username and password are required.")
+            return redirect(url_for('user.login'))
 
         user = User.query.filter_by(username=username).first()
         if not user or not check_password_hash(user.password, password):
@@ -36,10 +39,20 @@ def logout():
 @users.route("/register", methods=["GET", "POST"])
 def register():
     if request.method == "POST":
-        email = request.form.get("email")
-        username = request.form.get("name").lower()
-        password = request.form.get("password")
-        confirm_password = request.form.get("confirm_password")
+        email = (request.form.get("email") or "").strip()
+        username = (request.form.get("name") or "").strip().lower()
+        password = request.form.get("password") or ""
+        confirm_password = request.form.get("confirm_password") or ""
+
+        if not email:
+            flash("Email is required")
+            return redirect(url_for("user.register"))
+        if not username:
+            flash("Username is required")
+            return redirect(url_for("user.register"))
+        if not password:
+            flash("Password is required")
+            return redirect(url_for("user.register"))
 
         if password != confirm_password:
             flash('Passwords do not match')

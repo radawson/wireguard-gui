@@ -2,6 +2,7 @@ from flask import (
     Blueprint,
     current_app,
     flash,
+    g,
     jsonify,
     redirect,
     render_template,
@@ -9,14 +10,11 @@ from flask import (
     url_for,
 )
 from flask_login import login_required
-from gui.models import db, Peer, Network
+from gui.errors import CommandExecutionError, EntityNotFoundError, ValidationError
+from gui.integrations.wireguard import adapter as wg_adapter
+from gui.models import Network, Peer, db
 from gui.routes import helpers
-
-
-# Testing wg input
-import wireguard_tools as wgt
-
-devices = wgt.WireguardDevice.list()
+from gui.services import peer_service
 
 peers = Blueprint("peers", __name__, url_prefix="/peers")
 
@@ -35,41 +33,28 @@ sample_config = {
     },
 }
 
-## FUNCTIONS ##
-
-
-def add_peer(peer, network, sudo_password):
-    # Add a new peer to the running server
-    peer_cmd = f"wg set {network.adapter_name} peer {peer.get_public_key()} allowed-ips {peer.address}/{peer.subnet}"
-    print(f"Add Peer: {peer_cmd}")
-    try:
-        helpers.run_sudo(peer_cmd, sudo_password)
-    except Exception as e:
-        print(e)
-        return False
-    else:
-        return True
-
-
 def query_all_peers(network_id=None):
     if network_id is not None:
-        peer_query = Peer.query.filter_by(network=network_id).all()
-        print(f"Network {network_id} has {len(peer_query)} peers")
+        peer_query = peer_service.list_peers(int(network_id))
     else:
-        peer_query = Peer.query.all()
-        print(f"Found {len(peer_query)} peers")
+        peer_query = peer_service.list_peers()
+    if current_app.config.get("MODE") != "server":
+        return peer_query
+    status_by_adapter = {}
     for peer in peer_query:
-        peer.public_key = wgt.WireguardKey(peer.private_key).public_key()
+        peer.public_key = helpers.get_peer_public_key(peer)
         network = helpers.get_network(peer.network_id)
-        print(f"Peer {peer.name} is on network {network.name}")
         if network.name == "Invalid Network placeholder":
-            print(f"Skipping {peer.name} on {network.name}")
             continue
-        current_peers = helpers.get_peers_status(network.adapter_name)
-        for key in current_peers.keys():
-            print(f"Checking {key}")
+        if network.adapter_name not in status_by_adapter:
+            status_by_adapter[network.adapter_name] = helpers.get_peers_status(
+                network.adapter_name
+            )
+        current_peers = status_by_adapter[network.adapter_name]
+        if not peer.public_key:
+            continue
+        for key in current_peers:
             if str(peer.public_key) == str(key):
-                print(f"Found {peer.public_key}")
                 if "latest_handshake" in current_peers[str(peer.public_key)]:
                     if int(
                         current_peers[str(peer.public_key)]["latest_handshake"]
@@ -79,31 +64,12 @@ def query_all_peers(network_id=None):
                     else:
                         peer.active = False
                 else:
-                    print(f"No handshake not found for {peer.public_key}")
                     peer.active = False
     return peer_query
 
 
 def query_all_networks():
-    network_query = Network.query.all()
-    return network_query
-
-
-def remove_peer(peer, network, sudo_password):
-    # Remove a peer from the running server
-    peer_cmd = f"wg set {network.adapter_name} peer {peer.get_public_key()} remove"
-    print(f"Remove Peer: {peer_cmd}")
-    try:
-        helpers.run_sudo(peer_cmd, sudo_password)
-    except Exception as e:
-        print(e)
-        return False
-    else:
-        return True
-    
-def update_peer(peer):
-    # Update a peer on the running server
-    return False
+    return Network.query.all()
 
 
 ## ROUTES ##
@@ -112,180 +78,111 @@ def update_peer(peer):
 @peers.route("/", methods=["GET", "POST"])
 @login_required
 def peers_all():
-    if request.method == "POST":
-        message = "Bulk peers added successfully"
-        peer_list = query_all_peers()
-        flash(message, "success")
-        return render_template("peers.html", peer_list=peer_list)
-    elif request.method == "GET":
-        network_id = request.args.get("network_id")
-        peer_list = query_all_peers(network_id)
-        return render_template("peers.html", peer_list=peer_list)
-    else:
-        message = "Invalid request method"
-        peer_list = query_all_peers()
-        flash(message, "warning")
-        return render_template("peers.html", peer_list=peer_list)
+    network_id_raw = request.args.get("network_id")
+    network_id = None
+    if network_id_raw:
+        try:
+            network_id = int(network_id_raw)
+        except ValueError:
+            flash("Ignoring invalid network filter value.", "warning")
+    peer_list = query_all_peers(network_id)
+    if getattr(g, "wg_status_unavailable", False):
+        flash(
+            "Live WireGuard status is unavailable (sudo/WireGuard command check failed). "
+            "Showing database values only.",
+            "warning",
+        )
+    return render_template("peers.html", peer_list=peer_list)
 
 
 @peers.route("/add", methods=["GET", "POST"])
 @login_required
 def peers_add():
-    message = "Adding new peer"
     network_list = query_all_networks()
-    new_peer = {}
-    new_peer["id"] = 0
-    new_peer["config"] = sample_config
-    new_peer["public_key"] = ""
-    new_peer["network_id"] = 1
+    new_peer = {"id": 0, "config": sample_config, "public_key": "", "network_id": 1}
     if request.method == "POST":
-        name = request.form.get("name")
-        network = Network()
-        description = request.form.get("description")
-        private_key = request.form.get("private_key")
-        if request.form.get("lighthouse") == "on":
-            lighthouse = True
-        else:
-            lighthouse = False
-        if request.form.get("listen_port"):
-            listen_port = request.form.get("listen_port")
-        elif lighthouse is True:
-            listen_port = current_app.config["DEFAULT_LISTEN_PORT"]
-        else:
-            listen_port = None
-        network_ip = request.form.get("network_ip")
-        subnet = request.form.get("subnet")
-        dns = request.form.get("dns")
-        preshared_key = request.form.get("preshared_key")
-        # peer_config = request.form["peer_config"]
-        print(f"Adding peer {name} to network {request.form.get('network')}")
-        if request.form.get("network"):
-            network = Network.query.get(request.form.get("network"))
-        else:
-            if Network.query.get(1) is None:
-                network = Network(id=0, name="Invalid Network placeholder")
-            else:
-                network = Network.query.get(1)
-        if request.form.get("sudoPassword"):
-            sudo_password = request.form.get("sudoPassword")
-        else:
-            sudo_password = current_app.config["SUDO_PASSWORD"]
+        try:
+            peer = peer_service.create_peer_from_form(request.form)
+            if current_app.config["MODE"] == "server":
+                network = Network.query.get(peer.network_id)
+                if network:
+                    wg_adapter.add_peer(
+                        network.adapter_name,
+                        peer.get_public_key(),
+                        f"{peer.network_ip}/{peer.subnet}",
+                        request.form.get("sudoPassword") or current_app.config["SUDO_PASSWORD"],
+                    )
+            flash("Peer added successfully", "success")
+            return redirect(url_for("peers.peer_detail", peer_id=peer.id))
+        except (ValidationError, EntityNotFoundError) as exc:
+            flash(str(exc), "danger")
+        except ValueError as exc:
+            flash(str(exc), "danger")
+        except CommandExecutionError as exc:
+            flash(f"Peer added to database, but failed on server: {exc}", "warning")
 
-        new_peer = Peer(
-            name=name,
-            private_key=private_key,
-            network_ip=network_ip,
-            subnet=subnet,
-            listen_port=listen_port,
-            lighthouse=lighthouse,
-            dns=dns,
-            # peer_config=peer_config,
-            description=description,
-            network_id=network.id,
-            preshared_key=preshared_key,
-        )
-        if request.form.get("endpoint_ip"):
-            new_peer.endpoint_host = request.form.get("endpoint_host")
-        db.session.add(new_peer)
-        # Add peer to network only if a network exists
-        if network is not None:
-            if network.peers_list is None:
-                network.peers_list = []
-            network.peers_list.append(new_peer)
-        db.session.commit()
-        message += "\nPeer added to database"
-        # Add peer to running server
-        if current_app.config["MODE"] == "server" and network.id > 0:
-            if add_peer(new_peer, network, sudo_password):
-                message += "\nPeer added to running server"
-            else:
-                message += ", but failed to add to running server"
-            
-        print(message)
-        flash(message.replace('\n','<br>'), "success")
-        return redirect(url_for("peers.peer_detail", peer_id=new_peer.id))
-    else:
-        avail_ip = helpers.get_available_ip()
-        return render_template(
-            "peer_detail.html",
-            networks=network_list,
-            peer=new_peer,
-            avail_ip=avail_ip,
-            s_button="Add",
-        )
+    avail_ip = helpers.get_available_ip()
+    return render_template(
+        "peer_detail.html",
+        networks=network_list,
+        peer=new_peer,
+        avail_ip=avail_ip,
+        s_button="Add",
+    )
 
 
 @peers.route("/update/<int:peer_id>", methods=["POST"])
 @login_required
 def peer_update(peer_id):
-    message = f"Updating peer {peer_id}"
     peer = Peer.query.get(peer_id)
-    network = Network.query.get(peer.network_id)
-    sudo_password = current_app.config["SUDO_PASSWORD"]
-    peer.name = request.form.get("name")
-    peer.description = request.form.get("description")
-    peer.private_key = request.form.get("private_key")
-    peer.network_ip = request.form.get("network_ip")
-    peer.endpoint_host = request.form.get("endpoint_ip")
-    peer.listen_port = request.form.get("listen_port")
-    peer.subnet = request.form.get("subnet")
-    if request.form.get("listen_port"):
-        peer.listen_port = request.form.get("listen_port")
-    peer.dns = request.form.get("dns")
-    peer.network = request.form.get("network")
-    peer.preshared_key = request.form.get("preshared_key")
-    if request.form.get("lighthouse") == "on":
-        peer.lighthouse = True
-    else:
-        peer.lighthouse = False
-    print(f"Lighthouse: {peer.lighthouse}")
-    # Add peer to running server
-    if current_app.config["MODE"] == "server":
-        pass
-        message += "\nError updating peer on running server"
-    else:
-        db.session.commit()
-        message += "\nPeer updated in database"
-    peer_list = query_all_peers()
-    print(message)
-    flash(message, "success")
-    return render_template("peers.html", peer_list=peer_list)
+    if not peer:
+        flash("Peer not found", "danger")
+        return redirect(url_for("peers.peers_all"))
+    try:
+        peer_service.update_peer_from_form(peer, request.form)
+        flash(f"Peer {peer_id} updated in database", "success")
+    except (ValidationError, EntityNotFoundError, ValueError) as exc:
+        db.session.rollback()
+        flash(str(exc), "danger")
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.exception("Unexpected peer update error for peer_id=%s", peer_id)
+        flash("Error updating peer", "danger")
+    return redirect(url_for("peers.peers_all"))
 
 
 @peers.route("/delete/<int:peer_id>", methods=["POST"])
 @login_required
 def peer_delete(peer_id):
-    message = f"Deleting peer {peer_id}"
     peer = Peer.query.filter_by(id=peer_id).first()
-    network = helpers.get_network(peer.network)
-    sudo_password = current_app.config["SUDO_PASSWORD"]
-    # Remove peer from running server
-    if current_app.config["MODE"] == "server":
-        if remove_peer(peer, network, sudo_password):
-            db.session.delete(peer)
-            db.session.commit()
-            message += "\nPeer deleted successfully"
-            flash(message, "success")
-        else:
-            message += "\nError removing peer from running server"
-            flash(message, "danger")
-    else:
-        db.session.delete(peer)
-        db.session.commit()
-        message += "\nPeer deleted successfully"
-        flash(message, "success")
-    peer_list = query_all_peers()
-    print(message)
-
-    return render_template("peers.html", peer_list=peer_list)
+    if not peer:
+        flash("Peer not found", "danger")
+        return redirect(url_for("peers.peers_all"))
+    try:
+        if current_app.config["MODE"] == "server":
+            network = helpers.get_network(peer.network_id)
+            peer_public_key = helpers.get_peer_public_key(peer)
+            if not peer_public_key:
+                raise ValidationError("Peer does not contain a valid WireGuard public key")
+            wg_adapter.remove_peer(
+                network.adapter_name,
+                peer_public_key,
+                current_app.config["SUDO_PASSWORD"],
+            )
+        peer_service.remove_peer(peer_id)
+        flash(f"Peer {peer_id} deleted successfully", "success")
+    except CommandExecutionError as exc:
+        flash(f"Error removing peer from running server: {exc}", "danger")
+    return redirect(url_for("peers.peers_all"))
 
 
 @peers.route("/<int:peer_id>", methods=["GET"])
 @login_required
 def peer_detail(peer_id):
-    # peer = next((item for item in peer_list if item["id"] == int(peer_id)), None)
     peer = Peer.query.filter_by(id=peer_id).first()
-    print(f"Found: {peer}")
+    if not peer:
+        flash("Peer not found", "danger")
+        return redirect(url_for("peers.peers_all"))
 
     return render_template(
         "peer_detail.html",
@@ -300,64 +197,60 @@ def peer_api(peer_id):
     if request.method == "GET":
         if peer_id == 0:
             return jsonify([peer.to_dict() for peer in Peer.query.all()])
-        return jsonify(Peer.query.get(peer_id))
-    elif request.method == "POST":
-        return add_peer(peer_id)
+        peer = Peer.query.get(peer_id)
+        if not peer:
+            return jsonify({"error": "Peer not found"}), 404
+        return jsonify(peer.to_dict())
     elif request.method == "PATCH":
-        message = f"Updating peer {peer_id}\n"
         peer = Peer.query.get(peer_id)
-        # logic to update peer
-        # If server
-        if current_app.config["MODE"] == "server":
-            if update_peer(peer):
-                message += "Peer updated on server\n"
-            else:
-                message += "Error updating peer on server\n"
-        # If database
-        for key, value in request.json.items():
-            setattr(peer, key, value)
-        db.session.commit()
-        message += "Peer updated in database"
-        flash(message, "success")
-        return jsonify(peer)
+        if not peer:
+            return jsonify({"error": "Peer not found"}), 404
+        data = request.json or {}
+        allowed_fields = {
+            "name",
+            "description",
+            "dns",
+            "endpoint_host",
+            "listen_port",
+            "network_ip",
+            "subnet",
+            "network_id",
+            "preshared_key",
+            "lighthouse",
+            "private_key",
+            "active",
+        }
+        unknown_fields = sorted(set(data.keys()) - allowed_fields)
+        if unknown_fields:
+            return jsonify({"error": f"Unknown fields: {', '.join(unknown_fields)}"}), 400
+        try:
+            for key, value in data.items():
+                setattr(peer, key, value)
+            db.session.commit()
+        except (ValueError, TypeError) as exc:
+            db.session.rollback()
+            return jsonify({"error": str(exc)}), 400
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception("Unexpected peer API patch error for peer_id=%s", peer_id)
+            return jsonify({"error": "Unable to update peer"}), 500
+        return jsonify(peer.to_dict())
     elif request.method == "DELETE":
-        message = f"Deleting peer {peer_id}\n"
         peer = Peer.query.get(peer_id)
-        # If server
-        if current_app.config["MODE"] == "server":
-            if remove_peer(peer_id):
-                message += "Peer removed from server\n"
-            else:
-                message += "Error removing peer from server\n"
-        # If database
+        if not peer:
+            return jsonify({"error": "Peer not found"}), 404
         db.session.delete(peer)
         db.session.commit()
-        message += "Peer removed from database"
-        flash(message, "success")
-        return jsonify(message)
-    else:
-        return jsonify("Invalid request method")
-    
+        return jsonify({"message": "Peer removed from database"})
+    return jsonify({"error": "Invalid request method"}), 405
+
 @peers.route("/activate/<int:peer_id>", methods=["POST"])
 @login_required
 def peer_activate(peer_id):
-    message = f"Activating peer {peer_id}\n"
-    category = "information"
-    if current_app.config["MODE"] == "server":
-        peer = Peer.query.get(peer_id)
-        network = Network.query.get(peer.network)
-        sudo_password = current_app.config["SUDO_PASSWORD"]
-        # Add peer to running server
-        if current_app.config["MODE"] == "server":
-            if add_peer(peer, network, sudo_password):
-                message += "Peer added to running server"
-            else:
-                message += "Error adding peer to running server"
-        else:
-            peer.active = True
-            db.session.commit()
-            message += "Peer activated in database"
-    else:
-        message = "Peer activation only available on server"
-        category = "warning"
-    return jsonify({"category":category, "message":message})
+    try:
+        message = peer_service.activate_peer(peer_id, current_app.config["SUDO_PASSWORD"])
+        return jsonify({"category": "success", "message": message})
+    except (ValidationError, EntityNotFoundError) as exc:
+        return jsonify({"category": "warning", "message": str(exc)})
+    except CommandExecutionError as exc:
+        return jsonify({"category": "danger", "message": str(exc)})

@@ -26,7 +26,17 @@ class WireguardDevice(ABC):
     def get_config(self) -> WireguardConfig: ...
 
     @abstractmethod
-    def set_config(self, config: WireguardConfig) -> None: ...
+    def set_config(self, config: WireguardConfig) -> None:
+        """Atomically replace the full interface configuration (setconf)."""
+        ...
+
+    def sync_config(self, config: WireguardConfig) -> None:
+        """Diff against running config and apply only changes (syncconf).
+
+        Subclasses may override for a more efficient implementation.
+        The default reads the current config, diffs, and calls set_config.
+        """
+        self.set_config(config)
 
     @classmethod
     def get(cls, ifname: str) -> WireguardDevice:

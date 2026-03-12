@@ -3,45 +3,34 @@
 {% block title %}Register{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center">
-        <h2 class="mb-0">Register</h2>
+<div class="mx-auto max-w-xl app-card">
+    <h2 class="mb-4 text-2xl font-semibold">Register</h2>
+    {% with messages = get_flashed_messages() %}
+    {% if messages %}
+    <div class="mb-4 rounded bg-red-100 px-4 py-3 text-sm text-red-800">
+        {{ messages[0] }}. Go to <a class="underline" href="{{ url_for('user.login') }}">login page</a>.
     </div>
-    <hr class="hr" />
-    <div class="row justify-content-center">
-        <div class="col-md-6">
-            <div class="card">
-                {% with messages = get_flashed_messages() %}
-                {% if messages %}
-                <div class="alert alert-danger">
-                    {{ messages[0] }}. Go to <a href="{{ url_for('user.login') }}">login page</a>.
-                </div>
-                {% endif %}
-                {% endwith %}
-                <form method="POST" action="{{url_for('user.register')}}">
-                    <div class="mb-3 form-outline position-relative" data-mdb-input-init>
-                        <input type="text" class="form-control" id="name" name="name"/>
-                        </input>
-                        <label for="name" class="form-label">User Name</label>
-                    </div>
-                    <div class="mb-3 form-outline position-relative" data-mdb-input-init>
-                        <input class="form-control" type="email" id="email" name="email"/>
-                        <label for="email" class="form-label">Email</label>
-                    </div>
-                    <div class="mb-3 form-outline position-relative" data-mdb-input-init>
-                        <input class="form-control" type="password" id="password" name="password"/>
-                        <label for="password" class="form-label">Password</label>
-                    </div>
-                    <div class="mb-3 form-outline position-relative" data-mdb-input-init>
-                        <input class="form-control" type="password" id="confirm_password" name="confirm_password"/>
-                        <label for="confirm_password" class="form-label">Confirm Password</label>
-                    </div>
-
-                    <button class="btn btn-primary">Add user</button>
-                </form>
-            </div>
+    {% endif %}
+    {% endwith %}
+    <form method="POST" action="{{url_for('user.register')}}" class="space-y-4">
+        <div>
+            <label class="app-label" for="name">User Name</label>
+            <input type="text" class="app-input" id="name" name="name"/>
         </div>
-    </div>
+        <div>
+            <label class="app-label" for="email">Email</label>
+            <input class="app-input" type="email" id="email" name="email"/>
+        </div>
+        <div>
+            <label class="app-label" for="password">Password</label>
+            <input class="app-input" type="password" id="password" name="password"/>
+        </div>
+        <div>
+            <label class="app-label" for="confirm_password">Confirm Password</label>
+            <input class="app-input" type="password" id="confirm_password" name="confirm_password"/>
+        </div>
+        <button class="app-btn">Add user</button>
+    </form>
 </div>
 {% endblock %}
 

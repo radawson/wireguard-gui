@@ -1,5 +1,4 @@
 from __future__ import annotations
-import json
 import ipaddress
 
 from typing import List
@@ -51,7 +50,7 @@ class Network(db.Model):
         else:
             lh = None
         wg_config = f"[Peer]\nPublicKey = {self.get_public_key()}\n"
-        if len(self.allowed_ips) > 0:
+        if self.allowed_ips:
             wg_config += f"AllowedIPs = {self.allowed_ips}\n"
         if lh:
             wg_config += f"Endpoint = {lh.endpoint_host}:{lh.listen_port}\n"
@@ -106,50 +105,52 @@ class Network_Config(db.Model):
 
 
 def network_load_test_db():
-    # Dummy list for testing
-    network1 = Network(
-        name="network 1",
-        proxy=False,
-        lh_ip="10.10.11.1",
-        public_key="m1cSyM6Veev3vQIMYQ23gr22Qn/Vu3vg5d8xBTu43gE=",
-        peers_list=json.dumps(
-            [
-                "kHuDnIycdQYOVpSSMLqZwfe8D9eQSElSoIdWBFz8+jo=",
-            ]
+    # Idempotent seed data for test/development.
+    seed_networks = [
+        dict(
+            name="network 1",
+            proxy=False,
+            private_key="m1cSyM6Veev3vQIMYQ23gr22Qn/Vu3vg5d8xBTu43gE=",
+            base_ip="10.10.11.0",
+            subnet=24,
+            adapter_name="wg0",
+            allowed_ips="10.10.11.0/24",
+            dns_server="10.10.11.1",
+            persistent_keepalive=25,
+            description="A basic /24 network",
+            active=True,
         ),
-        base_ip="10.10.11.0",
-        subnet="24",
-        adapter_name="wg0",
-        dns_server="10.10.11.1",
-        description="A basic /24 network",
-        active=True,
-    )
-    network2 = Network(
-        name="network 2",
-        proxy=True,
-        lh_ip="172.122.88.1",
-        public_key="Wek3/glj4oirvt6gPw3BPL1wLrb47KxXKUwShvBNy0Y=",
-        peers_list=json.dumps(["Wek3/glj4oirvt6gPw3BPL1wLrb47KxXKUwShvBNy0Y="]),
-        base_ip="172.122.88.0",
-        subnet="16",
-        adapter_name="wg0",
-        dns_server="1.1.1.1,1.1.2.2",
-        description="Another network that could be slightly larger and uses the server as a proxy",
-        active=False,
-    )
-    network3 = Network(
-        name="network 3",
-        proxy=False,
-        lh_ip="192.168.43.1",
-        public_key="OIa8lH814Mzuo1oIT+AQpe8Wm/9JEIf3Tg6g7t5e1k8=",
-        peers_list=json.dumps(["OIa8lH814Mzuo1oIT+AQpe8Wm/9JEIf3Tg6g7t5e1k8="]),
-        base_ip="192.168.43.0",
-        subnet="24",
-        adapter_name="wg0",
-        description="A small, closed network",
-        active=True,
-    )
+        dict(
+            name="network 2",
+            proxy=True,
+            private_key="Wek3/glj4oirvt6gPw3BPL1wLrb47KxXKUwShvBNy0Y=",
+            base_ip="172.122.88.0",
+            subnet=16,
+            adapter_name="wg1",
+            allowed_ips="172.122.88.0/16",
+            dns_server="1.1.1.1,1.1.0.1",
+            persistent_keepalive=25,
+            description="A larger network using proxy mode",
+            active=False,
+        ),
+        dict(
+            name="network 3",
+            proxy=False,
+            private_key="OIa8lH814Mzuo1oIT+AQpe8Wm/9JEIf3Tg6g7t5e1k8=",
+            base_ip="192.168.43.0",
+            subnet=24,
+            adapter_name="wg2",
+            allowed_ips="192.168.43.0/24",
+            dns_server="",
+            persistent_keepalive=25,
+            description="A small, closed network",
+            active=True,
+        ),
+    ]
 
-    network_list = [network1.__dict__, network2.__dict__, network3.__dict__]
-    db.session.bulk_insert_mappings(Network, network_list)
+    for seed in seed_networks:
+        existing = Network.query.filter_by(name=seed["name"]).first()
+        if existing:
+            continue
+        db.session.add(Network(**seed))
     db.session.commit()

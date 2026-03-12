@@ -30,6 +30,23 @@ SimpleJsonTypes = Union[str, int, float, bool, None]
 T = TypeVar("T")
 
 
+def _parse_endpoint(value: str) -> tuple[str, int]:
+    """Parse an endpoint string into (host, port), handling IPv6 bracket notation."""
+    if value.startswith("["):
+        bracket_end = value.index("]")
+        host = value[1:bracket_end]
+        port = int(value[bracket_end + 2:])
+    else:
+        host, port_str = value.rsplit(":", 1)
+        port = int(port_str)
+    return host, port
+
+
+def _split_comma_list(value: str) -> list[str]:
+    """Split a comma-separated value list, tolerating optional whitespace."""
+    return [item for item in (s.strip() for s in value.split(",")) if item]
+
+
 def _ipaddress_or_host(
     host: IPv4Address | IPv6Address | str,
 ) -> IPv4Address | IPv6Address | str:
@@ -87,9 +104,9 @@ class WireguardPeer:
     def from_dict(cls, config_dict: dict[str, Any]) -> WireguardPeer:
         endpoint = config_dict.pop("endpoint", None)
         if endpoint is not None:
-            host, port = endpoint.rsplit(":", 1)
+            host, port = _parse_endpoint(endpoint)
             config_dict["endpoint_host"] = host
-            config_dict["endpoint_port"] = int(port)
+            config_dict["endpoint_port"] = port
         return cls(**config_dict)
 
     def asdict(self) -> dict[str, Any]:
@@ -116,14 +133,14 @@ class WireguardPeer:
             elif key == "presharedkey":
                 conf["preshared_key"] = WireguardKey(value)
             elif key == "endpoint":
-                host, port = value.rsplit(":", 1)
+                host, port = _parse_endpoint(value)
                 conf["endpoint_host"] = host
-                conf["endpoint_port"] = int(port)
+                conf["endpoint_port"] = port
             elif key == "persistentkeepalive":
                 conf["persistent_keepalive"] = int(value)
             elif key == "allowedips":
                 conf.setdefault("allowed_ips", []).extend(
-                    ip_interface(addr) for addr in value.split(", ")
+                    ip_interface(addr) for addr in _split_comma_list(value)
                 )
             elif key == "# friendly_name":
                 conf["friendly_name"] = value
@@ -142,7 +159,11 @@ class WireguardPeer:
         if self.preshared_key:
             conf.append(f"PresharedKey = {self.preshared_key}")
         if self.endpoint_host:
-            conf.append(f"Endpoint = {self.endpoint_host}:{self.endpoint_port}")
+            host = self.endpoint_host
+            if isinstance(host, IPv6Address):
+                conf.append(f"Endpoint = [{host}]:{self.endpoint_port}")
+            else:
+                conf.append(f"Endpoint = {host}:{self.endpoint_port}")
         if self.persistent_keepalive:
             conf.append(f"PersistentKeepalive = {self.persistent_keepalive}")
         conf.extend([f"AllowedIPs = {addr}" for addr in self.allowed_ips])
@@ -171,6 +192,9 @@ class WireguardConfig:
     )
     search_domains: list[str] = field(factory=list)
     mtu: int | None = field(converter=optional(int), default=None)
+
+    table: str | None = field(default=None)
+    save_config: bool | None = field(default=None)
 
     preup: list[str] = field(factory=list)
     postup: list[str] = field(factory=list)
@@ -246,20 +270,26 @@ class WireguardConfig:
             if key == "privatekey":
                 self.private_key = WireguardKey(value)
             elif key == "fwmark":
-                self.fwmark = int(value)
+                self.fwmark = int(value, 0)
             elif key == "listenport":
                 self.listen_port = int(value)
             elif key == "address":
-                self.addresses.extend(ip_interface(addr) for addr in value.split(", "))
+                self.addresses.extend(
+                    ip_interface(addr) for addr in _split_comma_list(value)
+                )
             elif key == "dns":
-                for item in value.split(", "):
+                for item in _split_comma_list(value):
                     self._add_dns_entry(item)
             elif key == "mtu":
                 self.mtu = int(value)
+            elif key == "table":
+                self.table = value
+            elif key == "saveconfig":
+                self.save_config = value.lower() == "true"
             elif key == "includedapplications":
-                self.included_applications.extend(item for item in value.split(", "))
+                self.included_applications.extend(_split_comma_list(value))
             elif key == "excludedapplications":
-                self.excluded_applications.extend(item for item in value.split(", "))
+                self.excluded_applications.extend(_split_comma_list(value))
             elif key == "preup":
                 self.preup.append(value)
             elif key == "postup":
@@ -292,6 +322,10 @@ class WireguardConfig:
         if wgquick_format:
             if self.mtu is not None:
                 conf.append(f"MTU = {self.mtu}")
+            if self.table is not None:
+                conf.append(f"Table = {self.table}")
+            if self.save_config is not None:
+                conf.append(f"SaveConfig = {'true' if self.save_config else 'false'}")
             conf.extend([f"Address = {addr}" for addr in self.addresses])
             conf.extend([f"DNS = {addr}" for addr in self.dns_servers])
             conf.extend([f"DNS = {domain}" for domain in self.search_domains])

@@ -24,6 +24,12 @@ def about():
     return render_template("about.html", version=version)
 
 
+# Route for the help page (WireGuard terms glossary)
+@main.route("/help")
+def help_page():
+    return render_template("help.html")
+
+
 # Route for the user profile page
 @main.route('/profile')
 @login_required

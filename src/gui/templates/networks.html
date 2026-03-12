@@ -3,26 +3,34 @@
 {% block title %} Networks {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center">
-        <h2 class="mb-0">Networks</h2>
-        <a href="{{ url_for('networks.networks_add') }}" class="btn btn-primary">Create Network</a>
+<div class="space-y-4">
+    <div class="flex items-center justify-between">
+        <h2 class="text-2xl font-semibold">Networks</h2>
+        <a href="{{ url_for('networks.networks_add') }}" class="app-btn">Create Network</a>
     </div>
-    <hr class="hr" />
-
-    <!-- data table -->
-    <div data-mdb-input-init class="form-outline mb-4">
-        <input type="text" class="form-control" id="datatable-search-input" />
-        <label class="form-label" for="datatable-search-input">Search</label>
+    <div>
+        <label class="app-label" for="datatable-search-input">Search</label>
+        <input type="text" class="app-input" id="datatable-search-input" placeholder="Filter by name, endpoint, key..." />
     </div>
-    <div id="networks-datatable" data-mdb-loading="true">
+    <div class="overflow-x-auto app-card">
+        <table class="min-w-full text-sm" id="networks-table">
+            <thead class="border-b border-slate-200 text-left">
+                <tr>
+                    <th class="px-3 py-2">Activation</th>
+                    <th class="px-3 py-2">Name</th>
+                    <th class="px-3 py-2">Public Key</th>
+                    <th class="px-3 py-2">Net IP Range</th>
+                    <th class="px-3 py-2">Endpoint</th>
+                    <th class="px-3 py-2">Peers</th>
+                    <th class="px-3 py-2">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="networks-tbody"></tbody>
+        </table>
     </div>
-
-    <br>
-    <div class="container-fluid">
+    <div>
         <p>Note: All network configurations are stored in the database until they are deleted. Inactive network
             configurations are essentially in an unknown state.</p>
-        <input type="hidden" id="networkId">
     </div>
 </div>
 {% endblock %}
@@ -30,123 +38,79 @@
 {% block scripts %}
 <script src="{{url_for('static',filename='js/wireguard.js')}}"></script>
 <script>
-    window.onload = function () {
-        loadNetworks();
-    }
+    const tbody = document.getElementById('networks-tbody');
+    const searchInput = document.getElementById('datatable-search-input');
+    let rowsData = [];
 
     function loadNetworks() {
         fetch("{{ url_for('networks.network_api',network_id=0)}}")
             .then((response) => response.json())
             .then((data) => {
-                networksTable.update(
-                    {
-                        rows: data.map((network) => ({
-                            ...network,
-                            public_key: wireguard.getPublicKey(network.private_key),
-                            endpoint_ip: `${network.endpoint_host}:${network.listen_port}`,
-                            base_ip_range: `${network.base_ip}90/${network.subnet}`,
-                            peer_count: network.peer_count,
-                            active: `
-                            <span class="badge bg-danger" data-mdb-index="${network.id}">Inactive</span>
-                            `,
-                            actions: `
-                            <a role="button" class="activate-network-button text-warning" data-mdb-index="${network.id}">
-                                <i class="fas fa-power-off"></i>
-                            </a>
-                            <a role="button" class="edit-network-button text-muted ms-2" data-mdb-index="${network.id}">
-                                <i class="fa fa-pen-to-square"></i>
-                            </a>
-                            <a role="button" class="delete-network-button text-muted ms-2" data-mdb-index="${network.id}">
-                                <i class="fa fa-trash-alt"></i>
-                            </a>
-                            `,
-                        })),
-                    },
-                    { loading: false }
-                );
+                rowsData = data;
+                renderTable(rowsData);
             });
     }
 
-    const table = document.getElementById('networks-datatable');
+    function renderTable(data) {
+        tbody.innerHTML = data.map((network) => {
+            const publicKey = network.private_key ? wireguard.getPublicKey(network.private_key) : "N/A";
+            const endpoint = `${network.endpoint_host || "-"}:${network.listen_port || "-"}`;
+            const active = network.active ? "Active" : "Inactive";
+            const activeClass = network.active ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800";
+            return `
+                <tr class="border-b border-slate-100">
+                    <td class="px-3 py-2"><span class="rounded px-2 py-1 text-xs ${activeClass}">${active}</span></td>
+                    <td class="px-3 py-2">${network.name || ""}</td>
+                    <td class="px-3 py-2">${publicKey}</td>
+                    <td class="px-3 py-2">${network.base_ip || ""}/${network.subnet || ""}</td>
+                    <td class="px-3 py-2">${endpoint}</td>
+                    <td class="px-3 py-2">${network.peer_count || 0}</td>
+                    <td class="px-3 py-2">
+                        <button class="app-btn-secondary activate-network-button" data-id="${network.id}"><i class="fas fa-power-off"></i></button>
+                        <button class="app-btn-secondary edit-network-button" data-id="${network.id}"><i class="fa fa-pen-to-square"></i></button>
+                        <button class="app-btn-danger delete-network-button" data-id="${network.id}"><i class="fa fa-trash-alt"></i></button>
+                    </td>
+                </tr>
+            `;
+        }).join("");
 
-    const setupButtons = (action) => {
-        document.getElementsByClassName(`${action}-network-button`).forEach((button) => {
-            if (action === 'activate') {
-                button.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const index = button.getAttribute('data-mdb-index');
-                    let base_url = "{{ url_for('networks.network_activate',network_id=0)}}";
-                    let url = base_url.replace(0, index);
-                    console.log(`activate network: ${index} at ${url}`);
-                    fetch(url, {
-                        method: 'POST',
-                    })
-                        .then((response) => response.json())
-                        .then((data) => {
-                            console.log(data);
-                            showAlert(data);
-                            loadNetworks();
-                        });
-                });
-            } else if (action === 'edit') {
-                button.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const index = button.getAttribute('data-mdb-index');
-                    let base_url = "{{ url_for('networks.network_detail',network_id=0)}}";
-                    let url = base_url.replace(0, index)
-                    window.location.href = url;
-                });
-            } else if (action === 'delete') {
-                button.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const index = button.getAttribute('data-mdb-index');
-                    let base_url = "{{ url_for('networks.network_api',network_id=0)}}";
-                    let url = base_url.replace(0, index);
-                    console.log(`delete network: ${index} at ${url}`);
-                    fetch(url, {
-                        method: 'DELETE',
-                    })
-                        .then((response) => response.json())
-                        .then((data) => {
-                            console.log(data);
-                            showAlert(data);
-                            loadNetworks();
-                        });
-                });
-            } else {
-                button.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const index = button.getAttribute('data-mdb-index');
-                    console.log(`${action} message: ${index}`, messages[index]);
-                });
-            }
+        document.querySelectorAll('.activate-network-button').forEach((button) => {
+            button.addEventListener('click', () => activateNetwork(button.dataset.id));
         });
-    };
+        document.querySelectorAll('.edit-network-button').forEach((button) => {
+            button.addEventListener('click', () => {
+                const url = "{{ url_for('networks.network_detail',network_id=0)}}".replace(0, button.dataset.id);
+                window.location.href = url;
+            });
+        });
+        document.querySelectorAll('.delete-network-button').forEach((button) => {
+            button.addEventListener('click', () => deleteNetwork(button.dataset.id));
+        });
+    }
 
-    const columns = [
-        { label: 'Activation', field: 'active', sort: false },
-        { label: 'Name', field: 'name', sort: true },
-        { label: 'Public Key', field: 'public_key', sort: false },
-        { label: 'Net IP Range', field: 'base_ip_range', sort: true },
-        { label: 'Endpoint IP:Port', field: 'endpoint_ip', sort: false },
-        { label: 'Peers', field: 'peer_count', sort: true },
-        { label: 'Actions', field: 'actions' },
-    ];
+    function activateNetwork(id) {
+        const url = "{{ url_for('networks.network_activate',network_id=0)}}".replace(0, id);
+        fetch(url, { method: 'POST' })
+            .then((response) => response.json())
+            .then((data) => { showAlert(data); loadNetworks(); });
+    }
 
-    table.addEventListener('render.mdb.datatable', () => {
-        setupButtons('activate');
-        setupButtons('edit');
-        setupButtons('delete');
-    })
+    function deleteNetwork(id) {
+        if (!confirm("Delete this network?")) return;
+        const url = "{{ url_for('networks.network_api',network_id=0)}}".replace(0, id);
+        fetch(url, { method: 'DELETE' })
+            .then((response) => response.json())
+            .then((data) => { showAlert(data); loadNetworks(); });
+    }
 
-    const networksTable = new mdb.Datatable(
-        table,
-        { columns, },
-        { loading: true }
-    );
-
-    document.getElementById('datatable-search-input').addEventListener('input', (e) => {
-        networksTable.search(e.target.value);
+    searchInput.addEventListener('input', () => {
+        const query = searchInput.value.toLowerCase().trim();
+        const filtered = rowsData.filter((network) => {
+            return `${network.name} ${network.base_ip} ${network.endpoint_host}`.toLowerCase().includes(query);
+        });
+        renderTable(filtered);
     });
+
+    window.onload = loadNetworks;
 </script>
 {% endblock %}

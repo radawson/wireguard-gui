@@ -86,106 +86,86 @@ class Peer(db.Model):
 
 
 def peer_load_test_db():
-    # Dummy list for testing
+    # Idempotent seed data for test/development.
+    from .network import Network
+    network_lookup = {network.name: network.id for network in Network.query.all()}
+
     peer_list = [
         {
             "name": "peer 1",
-            "network_ip": "10.10.11.11/32",
+            "network_ip": "10.10.11.11",
+            "subnet": 32,
             "private_key": "iISiPbGn4wSPhloFOtDN2BgqfJ1MqKKkmm0WtWc9sFE=",
             "dns": "10.10.11.53",
-            "peers_list": [
-                {
-                    "Endpoint": "myserver.dyndns.org:51820",
-                    "AllowedIPs": ["10.10.11.0/24"],
-                    "PublicKey": "iISiPbGn4wSPhloFOtDN2BgqfJ1MqKKkmm0WtWc9sFE=",
-                    "PersistentKeepalive": 25,
-                    "Endpoint": "myserver.dyndns.org:51820",
-                }
-            ],
-            "network": 1,
+            "network_name": "network 1",
             "description": "description 1",
             "active": True,
         },
         {
             "name": "peer 2",
-            "network.ip": "10.10.11.18/32",
+            "network_ip": "10.10.11.18",
+            "subnet": 32,
             "private_key": "iISiPl0n4wSPhloFOtDN2BgqfJ1MqKKkmm0WtWc9sFE=",
             "dns": "10.10.11.53",
-            "peers_list": [
-                {
-                    "AllowedIPs": ["0.0.0.0/0", "::/0"],
-                    "PublicKey": "iISiPbGn4wSPhloFOtDN2BgqfJ1MqKKkmm0WtWc9sFE=",
-                    "PersistentKeepalive": 25,
-                    "Endpoint": "myserver.dyndns.org:51820",
-                }
-            ],
-            "network": 1,
+            "network_name": "network 1",
             "description": "description 2",
+            "active": False,
         },
         {
             "name": "peer 3",
-            "network_ip": "10.10.11.19/32",
+            "network_ip": "10.10.11.19",
+            "subnet": 32,
             "private_key": "YHmRePvK5Eay19KJe7QYcgNUgKEL4ky5X1xql+UhEGo=",
             "dns": "10.10.11.53",
-            "peers_list": {
-                "AllowedIPs": ["0.0.0.0/0", "::/0"],
-                "PublicKey": "iISiPbGn4wSPhloFOtDN2BgqfJ1MqKKkmm0WtWc9sFE=",
-                "PersistentKeepalive": 25,
-                "Endpoint": "myserver.dyndns.org:51820",
-            },
-            "network": 1,
+            "network_name": "network 1",
             "description": "RasPi honeypot",
+            "active": False,
         },
         {
             "name": "server 1",
-            "network_ip": "10.10.11.1/32",
+            "network_ip": "10.10.11.1",
+            "subnet": 32,
             "private_key": "wBIQfi2Z+DFhAW7Z57tqVTyG/z1MQpzNwGlWrAcF2F4=",
             "listen_port": 51820,
             "dns": "10.10.11.53",
             "lighthouse": True,
-            "peers_list": {
-                "AllowedIPs": ["0.0.0.0/0", "::/0"],
-                "PublicKey": "iISiPbGn4wSPhloFOtDN2BgqfJ1MqKKkmm0WtWc9sFE=",
-                "PersistentKeepalive": 25,
-                "Endpoint": "myserver.dyndns.org:51820",
-            },
-            "network": 1,
+            "network_name": "network 1",
             "description": "Auto-generated peer for the lighthouse",
+            "active": True,
         },
         {
             "name": "server 2",
-            "network_ip": "172.122.88.1/32",
+            "network_ip": "172.122.88.1",
+            "subnet": 32,
             "private_key": "KIy+vrfZDJ5KqHm0qrLK58Mqy5iV2OKx+l/vKXfTaXI=",
             "listen_port": 51820,
             "dns": "172.122.88.53",
             "lighthouse": True,
-            "peers_list": {
-                "AllowedIPs": ["0.0.0.0/0", "::/0"],
-                "PublicKey": "iISiPbGn4wSPhloFOtDN2BgqfJ1MqKKkmm0WtWc9sFE=",
-                "PersistentKeepalive": 25,
-                "Endpoint": "myserver.dyndns.org:51820",
-            },
-            "network": 2,
+            "network_name": "network 2",
             "description": "Auto-generated peer for the lighthouse",
+            "active": True,
         },
         {
             "name": "server 3",
-            "network.ip": "192.168.43.1/32",
+            "network_ip": "192.168.43.1",
+            "subnet": 32,
             "private_key": "aHt3pJBwvbcvlA8sXDCsWuN3tRs20kg8nR8Z4kyayGA=",
             "listen_port": 51820,
             "lighthouse": True,
-            "peers_list": {
-                "AllowedIPs": ["192.168.43.0/24"],
-                "PublicKey": "OIa8lH814Mzuo1oIT+AQpe8Wm/9JEIf3Tg6g7t5e1k8=",
-                "PersistentKeepalive": 25,
-                "Endpoint": "myserver.dyndns.org:51820",
-            },
-            "network": 3,
+            "network_name": "network 3",
             "description": "Auto-generated peer for the lighthouse",
+            "active": True,
         },
     ]
 
-    for peer in peer_list:
-        peer["peers_list"] = json.dumps(peer["peers_list"])
-    db.session.bulk_insert_mappings(Peer, peer_list)
+    for peer_seed in peer_list:
+        if Peer.query.filter_by(name=peer_seed["name"]).first():
+            continue
+        network_name = peer_seed.pop("network_name")
+        network_id = network_lookup.get(network_name)
+        if network_id is None:
+            continue
+        peer_seed["network_id"] = int(network_id)
+        peer_seed["peers_list"] = json.dumps([])
+        db.session.add(Peer(**peer_seed))
     db.session.commit()

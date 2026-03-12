@@ -3,113 +3,59 @@
 {% block title %} Settings {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center">
-        <h2 class="mb-0">Admin</h2>
-    </div>
-    <hr class="hr" />
+<div class="space-y-6">
+    <h2 class="text-2xl font-semibold">Admin</h2>
 
-    <!-- Tabs navs -->
-    <ul class="nav nav-tabs nav-justified mb-3" id="admin" role="tablist">
-        <li class="nav-item" role="presentation">
-            <a data-mdb-tab-init class="nav-link active" id="admin-tab-1" href="#admin-tabs-1" role="tab"
-                aria-controls="admin-tabs-1" aria-selected="true">Database</a>
-        </li>
-        <li class="nav-item" role="presentation">
-            <a data-mdb-tab-init class="nav-link" id="admin-tab-2" href="#admin-tabs-2" role="tab"
-                aria-controls="admin-tabs-2" aria-selected="false">Configuration</a>
-        </li>
-        <li class="nav-item" role="presentation">
-            <a data-mdb-tab-init class="nav-link" id="admin-tab-3" href="#admin-tabs-3" role="tab"
-                aria-controls="admin-tabs-3" aria-selected="false">Reserved</a>
-        </li>
-    </ul>
-    <!-- Tabs navs -->
-
-    <!-- Tabs content -->
-    <div class="tab-content" id="admin-content">
-        <div class="tab-pane fade show active" id="admin-tabs-1" role="tabpanel" aria-labelledby="admin-tab-1">
-            <div class="row form-group align-items-center">
-                <div class="col-sm-2">
-                    <a href="{{url_for ('settings.test_db_entries')}}" type="button" class="btn btn-primary"
-                        id="btn_load_db">
-                        Test Database</a>
-                </div>
-                <div class="col-sm-10">
-                    <label for="btn_load_db">Add test entries to the database </label>
-                </div>
-            </div>
-            <div class="row form-group align-items-center">
-                <div class="col-sm-2">
-                    <button type="button" class="btn btn-primary" id="btn_dump_db" data-mdb-ripple-init>
-                        Dump Database</button>
-                </div>
-                <div class="col-sm-10">
-                    <label for="btn_load_db">Download database in JSON format</label>
-                </div>
-            </div>
-            <div class="row form-group align-items-center">
-                <div class="col-sm-2">
-                    <a href="{{url_for ('user.register')}}" type="button" class="btn btn-primary" id="btn_add_user">
-                        Add user</a>
-                </div>
-                <div class="col-sm-10">
-                    <label for="btn_load_db">Add user</label>
-                </div>
-            </div>
-            <div class="row form-group align-items-center">
-                <div class="col-sm-2">
-                    <button type="button" class="btn btn-danger" data-mdb-ripple-init data-mdb-modal-init data-mdb-target="#confirmModal"
-                        id="btn_purge_db">Purge Database</button>
-                </div>
-                <div class="col-sm-10">
-                    <label for="btn_purge_db">Purge all entries from the database </label>
-                </div>
-            </div>
-        </div>
-        <div class="tab-pane fade" id="admin-tabs-2" role="tabpanel" aria-labelledby="admin-tab-2">
-
-            <p>Changing these values only updates the current running instance.</p>
-            <p>Update config.yaml to persistently update these values.</p>
-
-            <hr class="hr" />
-            <form method="post">
-                {% for key, value in config.items() %}
-                <div class="form-outline my-2" data-mdb-input-init>
-                    <input type="text" class="form-control" id="{{key}}" name="{{key}}" value="{{value}}">
-                    <label class="form-label" for="{{key}}">{{key}}</label>
-                </div>
-                {% endfor %}
-                <button type="submit" class="btn btn-primary">Update</button>
-                <button class="btn btn-warning">Save</button>
+    <section class="app-card space-y-3">
+        <h3 class="text-lg font-semibold">Database</h3>
+        <div class="flex flex-wrap gap-2">
+            <a href="{{url_for ('settings.test_db_entries')}}" class="app-btn" id="btn_load_db">Test Database</a>
+            <a href="{{url_for ('user.register')}}" class="app-btn-secondary" id="btn_add_user">Add user</a>
+            <form action="{{ url_for('settings.resync_runtime') }}" method="post">
+                <button type="submit" class="app-btn-secondary" id="btn_resync_runtime">Resync from WireGuard</button>
+            </form>
+            <form action="{{ url_for('settings.purge_db') }}" method="post" onsubmit="return confirm('Purge all entries from the database?')">
+                <button type="submit" class="app-btn-danger" id="btn_purge_db">Purge Database</button>
             </form>
         </div>
-        <div class="tab-pane fade" id="admin-tabs-3" role="tabpanel" aria-labelledby="admin-tab-3">
-            Reserved for future use
-        </div>
-    </div>
+        <p class="text-sm text-slate-600">Use these actions for test/development environments only.</p>
+    </section>
+
+    <section class="app-card">
+        <h3 class="mb-3 text-lg font-semibold">Runtime Configuration</h3>
+        <p class="mb-2 text-sm text-slate-600">Changing these values only updates the current running instance.</p>
+        <p class="mb-2 text-sm text-slate-600">Update `config.yaml` to persistently update these values.</p>
+        <p class="mb-4 text-sm text-slate-600">Only a safe subset of settings is editable here to avoid breaking runtime internals.</p>
+        <form method="post" class="space-y-5">
+            {% for section in runtime_config_sections %}
+            <div class="rounded-lg border border-slate-200 bg-white p-4">
+                <h4 class="text-base font-semibold text-slate-800">{{ section.title }}</h4>
+                <p class="mb-3 text-sm text-slate-600">{{ section.description }}</p>
+                <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    {% for field in section.fields %}
+                    <div>
+                        <label class="app-label" for="{{ field.key }}">{{ field.label }}</label>
+                        {% if field.type == 'select' %}
+                        <select class="app-input" id="{{ field.key }}" name="{{ field.key }}">
+                            {% for option in field.choices %}
+                            <option value="{{ option }}" {% if option == field.value %}selected{% endif %}>{{ option }}</option>
+                            {% endfor %}
+                        </select>
+                        {% else %}
+                        <input type="{{ field.type }}" class="app-input" id="{{ field.key }}" name="{{ field.key }}" value="{{ field.value }}">
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+            <div>
+                <button type="submit" class="app-btn">Update</button>
+            </div>
+        </form>
+    </section>
 </div>
-<!-- Modal -->
-<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="confirmModalLabel">Confirm Purge</h5>
-                <button type="button" class="btn-close" data-mdb-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                Are you sure you want to purge all entries from the database?
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-mdb-dismiss="modal">No</button>
-                <form action="{{ url_for('settings.purge_db') }}" method="post">
-                    <button type="submit" class="btn btn-primary">Yes</button>
-                </form>
-            </div>
-        </div>
-    </div>
+{% endblock %}
 
-    {% endblock %}
-
-    {% block scripts %}
-    {% endblock %}
+{% block scripts %}
+{% endblock %}

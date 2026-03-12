@@ -3,23 +3,32 @@
 {% block title %}Peers{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="d-flex justify-content-between align-items-center">
-        <h2 class="mb-0">Peers</h2>
-        <a href="{{ url_for('peers.peers_add') }}" class="btn btn-primary">Add Peer</a>
+<div class="space-y-4">
+    <div class="flex items-center justify-between">
+        <h2 class="text-2xl font-semibold">Peers</h2>
+        <a href="{{ url_for('peers.peers_add') }}" class="app-btn">Add Peer</a>
     </div>
-    <hr class="hr" />
-    <!-- data table -->
-    <div data-mdb-input-init class="form-outline mb-4">
-        <input type="text" class="form-control" id="datatable-search-input" />
-        <label class="form-label" for="datatable-search-input">Search</label>
+    <div>
+        <label class="app-label" for="datatable-search-input">Search</label>
+        <input type="text" class="app-input" id="datatable-search-input" placeholder="Filter peers..." />
     </div>
-    <div id="peers-datatable" data-mdb-loading="true">
+    <div class="overflow-x-auto app-card">
+        <table class="min-w-full text-sm">
+            <thead class="border-b border-slate-200 text-left">
+                <tr>
+                    <th class="px-3 py-2">Activation</th>
+                    <th class="px-3 py-2">Name</th>
+                    <th class="px-3 py-2">Public Key</th>
+                    <th class="px-3 py-2">Net IP</th>
+                    <th class="px-3 py-2">Endpoint</th>
+                    <th class="px-3 py-2">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="peers-tbody"></tbody>
+        </table>
     </div>
-
 </div>
-<br>
-<div class="container-fluid">
+<div>
     <p>Note: All client configurations are stored in the database until they are deleted. Inactive client
         configurations are essentially in an unknown state.</p>
 </div>
@@ -29,120 +38,77 @@
 {% block scripts %}
 <script src="{{url_for('static',filename='js/wireguard.js')}}"></script>
 <script>
-    window.onload = function () {
-        loadPeers();
-    }
+    const tbody = document.getElementById('peers-tbody');
+    const searchInput = document.getElementById('datatable-search-input');
+    let rowsData = [];
 
     function loadPeers() {
         fetch("{{ url_for('peers.peer_api',peer_id=0)}}")
             .then((response) => response.json())
             .then((data) => {
-                peersTable.update(
-                    {
-                        rows: data.map((peer) => ({
-                            ...peer,
-                            public_key: wireguard.getPublicKey(peer.private_key),
-                            endpoint_ip: `${peer.endpoint_host}:${peer.listen_port}`,
-                            active: `
-                            <span class="badge bg-danger" data-mdb-index="${peer.id}">Inactive</span>
-                            `,
-                            actions: `
-                            <a role="button" class="activate-peer-button text-warning" data-mdb-index="${peer.id}">
-                                <i class="fas fa-power-off"></i>
-                            </a>
-                            <a role="button" class="edit-peer-button text-muted ms-2" data-mdb-index="${peer.id}">
-                                <i class="fa fa-pen-to-square"></i>
-                            </a>
-                            <a role="button" class="delete-peer-button text-muted ms-2" data-mdb-index="${peer.id}">
-                                <i class="fa fa-trash-alt"></i>
-                            </a>
-                            `,
-                        })),
-                    },
-                    { loading: false }
-                );
+                rowsData = data;
+                renderTable(rowsData);
             });
     }
 
-    const table = document.getElementById('peers-datatable');
+    function renderTable(data) {
+        tbody.innerHTML = data.map((peer) => {
+            const publicKey = peer.private_key ? wireguard.getPublicKey(peer.private_key) : "N/A";
+            const endpoint = `${peer.endpoint_host || "-"}:${peer.listen_port || "-"}`;
+            const activeClass = peer.active ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-800";
+            const activeText = peer.active ? "Active" : "Inactive";
+            return `
+                <tr class="border-b border-slate-100">
+                    <td class="px-3 py-2"><span class="rounded px-2 py-1 text-xs ${activeClass}">${activeText}</span></td>
+                    <td class="px-3 py-2">${peer.name || ""}</td>
+                    <td class="px-3 py-2">${publicKey}</td>
+                    <td class="px-3 py-2">${peer.network_ip || ""}/${peer.subnet || ""}</td>
+                    <td class="px-3 py-2">${endpoint}</td>
+                    <td class="px-3 py-2">
+                        <button class="app-btn-secondary activate-peer-button" data-id="${peer.id}"><i class="fas fa-power-off"></i></button>
+                        <button class="app-btn-secondary edit-peer-button" data-id="${peer.id}"><i class="fa fa-pen-to-square"></i></button>
+                        <button class="app-btn-danger delete-peer-button" data-id="${peer.id}"><i class="fa fa-trash-alt"></i></button>
+                    </td>
+                </tr>
+            `;
+        }).join("");
 
-    const setupButtons = (action) => {
-        document.getElementsByClassName(`${action}-peer-button`).forEach((button) => {
-            if (action === 'activate') {
-                button.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const index = button.getAttribute('data-mdb-index');
-                    let base_url = "{{ url_for('peers.peer_activate',peer_id=0)}}";
-                    let url = base_url.replace(0, index);
-                    console.log(`activate peer: ${index} at ${url}`);
-                    fetch(url, {
-                        method: 'POST',
-                    })
-                        .then((response) => response.json())
-                        .then((data) => {
-                            console.log(data);
-                            showAlert(data);
-                            loadPeers();
-                        });
-                });
-            } else if (action === 'edit') {
-                button.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const index = button.getAttribute('data-mdb-index');
-                    let base_url = "{{ url_for('peers.peer_detail',peer_id=0)}}";
-                    let url = base_url.replace(0, index)
-                    window.location.href = url;
-                });
-            } else if (action === 'delete') {
-                button.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const index = button.getAttribute('data-mdb-index');
-                    let base_url = "{{ url_for('peers.peer_api',peer_id=0)}}";
-                    let url = base_url.replace(0, index);
-                    console.log(`delete peer: ${index} at ${url}`);
-                    fetch(url, {
-                        method: 'DELETE',
-                    })
-                        .then((response) => response.json())
-                        .then((data) => {
-                            console.log(data);
-                            showAlert(data);
-                            loadPeers();
-                        });
-                });
-            } else {
-                button.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const index = button.getAttribute('data-mdb-index');
-                    console.log(`${action} message: ${index}`, messages[index]);
-                });
-            }
+        document.querySelectorAll('.activate-peer-button').forEach((button) => {
+            button.addEventListener('click', () => activatePeer(button.dataset.id));
         });
-    };
+        document.querySelectorAll('.edit-peer-button').forEach((button) => {
+            button.addEventListener('click', () => {
+                window.location.href = "{{ url_for('peers.peer_detail',peer_id=0)}}".replace(0, button.dataset.id);
+            });
+        });
+        document.querySelectorAll('.delete-peer-button').forEach((button) => {
+            button.addEventListener('click', () => deletePeer(button.dataset.id));
+        });
+    }
 
-    const columns = [
-        { label: 'Activation', field: 'active', sort: false },
-        { label: 'Name', field: 'name', sort: true },
-        { label: 'Public Key', field: 'public_key', sort: true },
-        { label: 'Net IP', field: 'network_ip', sort: true },
-        { label: 'Endpoint IP:Port', field: 'endpoint_ip', sort: false },
-        { label: 'Actions', field: 'actions' },
-    ];
+    function activatePeer(id) {
+        const url = "{{ url_for('peers.peer_activate',peer_id=0)}}".replace(0, id);
+        fetch(url, { method: 'POST' })
+            .then((response) => response.json())
+            .then((data) => { showAlert(data); loadPeers(); });
+    }
 
-    table.addEventListener('render.mdb.datatable', () => {
-        setupButtons('activate');
-        setupButtons('edit');
-        setupButtons('delete');
-    })
+    function deletePeer(id) {
+        if (!confirm("Delete this peer?")) return;
+        const url = "{{ url_for('peers.peer_api',peer_id=0)}}".replace(0, id);
+        fetch(url, { method: 'DELETE' })
+            .then((response) => response.json())
+            .then((data) => { showAlert(data); loadPeers(); });
+    }
 
-    const peersTable = new mdb.Datatable(
-        table,
-        { columns, },
-        { loading: true }
-    );
-
-    document.getElementById('datatable-search-input').addEventListener('input', (e) => {
-        peersTable.search(e.target.value);
+    searchInput.addEventListener('input', () => {
+        const query = searchInput.value.toLowerCase().trim();
+        const filtered = rowsData.filter((peer) => {
+            return `${peer.name} ${peer.network_ip} ${peer.endpoint_host}`.toLowerCase().includes(query);
+        });
+        renderTable(filtered);
     });
+
+    window.onload = loadPeers;
 </script>
 {% endblock %}

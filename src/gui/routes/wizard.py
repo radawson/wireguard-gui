@@ -11,6 +11,7 @@ from flask import (
     request,
 )
 from ..models import db, Network, Peer, subnets
+from gui.services import runtime_sync_service
 from wireguard_tools import WireguardKey
 
 
@@ -65,14 +66,20 @@ def wizard_basic():
         return render_template("wizard_setup.html", defaults=defaults, subnets=subnets)
     defaults["base_ip"] = base_ip
     # test subnet to make sure it is a valid subnet
-    if int(subnet) not in range(0, 33):
+    try:
+        subnet_int = int(subnet)
+    except (TypeError, ValueError):
+        message = "Please enter a valid subnet"
+        flash(message, "warning")
+        return render_template("wizard_setup.html", defaults=defaults, subnets=subnets)
+    if subnet_int not in range(0, 33):
         message = "Please enter a valid subnet"
         flash(message, "warning")
         return render_template("wizard_setup.html", defaults=defaults, subnets=subnets)
     listen_port = defaults["base_port"]
 
     # Append CIDR subnet to base_ip
-    allowed_ips = base_ip + "/" + str(subnet)
+    allowed_ips = base_ip + "/" + str(subnet_int)
 
     # Get the IP address of the current machine
     endpoint_host = helpers.get_public_ip()
@@ -83,6 +90,15 @@ def wizard_basic():
 
     # Get adapter name from rotation
     adapter_name = "wg0"
+    if current_app.config.get("MODE") == "server":
+        conflict = runtime_sync_service.get_adapter_conflict_reason(
+            adapter_name,
+            owner_network_id=None,
+            sudo_password=sudo_password,
+        )
+        if conflict:
+            flash(conflict, "danger")
+            return render_template("wizard_setup.html", defaults=defaults, subnets=subnets)
 
     # Create a lighthouse first
     # Create a new peer object
@@ -93,8 +109,15 @@ def wizard_basic():
     adapters = helpers.get_adapter_names()
     print(f"Adapters found:{adapters}")
 
-    post_up_string = f"iptables -A FORWARD -i wg0 -j ACCEPT; iptables -t nat -A POSTROUTING -o {adapters[0]} -j MASQUERADE"
-    post_down_string = f"iptables -D FORWARD -i wg0 -j ACCEPT; iptables -t nat -D POSTROUTING -o {adapters[0]} -j MASQUERADE"
+    uplink_adapter = helpers.get_uplink_adapter()
+    post_up_string = (
+        f"iptables -A FORWARD -i {adapter_name} -j ACCEPT; "
+        f"iptables -t nat -A POSTROUTING -o {uplink_adapter} -j MASQUERADE"
+    )
+    post_down_string = (
+        f"iptables -D FORWARD -i {adapter_name} -j ACCEPT; "
+        f"iptables -t nat -D POSTROUTING -o {uplink_adapter} -j MASQUERADE"
+    )
     new_peer = Peer(
         active = False,
         description="Auto-generated peer for the lighthouse",
@@ -109,7 +132,7 @@ def wizard_basic():
         post_up=post_up_string,
         post_down=post_down_string,
         private_key=private_key,
-        subnet=subnet,
+        subnet=subnet_int,
     )
 
     if dns:
@@ -136,7 +159,7 @@ def wizard_basic():
         persistent_keepalive=25,
         private_key=new_peer.private_key,
         proxy=False,
-        subnet=subnet,
+        subnet=subnet_int,
     )
 
     # Add the new network to the database
@@ -144,7 +167,7 @@ def wizard_basic():
     db.session.commit()
     message += "\nNetwork added to database"
 
-    new_peer.network = new_network.id
+    new_peer.network_id = new_network.id
 
     db.session.commit()
     message += "\nPeer network updated"
@@ -153,7 +176,7 @@ def wizard_basic():
         # Create the adapter configuration file
         adapter_string = helpers.config_build(new_peer, new_network)
 
-        if helpers.config_save(adapter_string, "server", "wg0.conf"):
+        if helpers.config_save(adapter_string, "server", f"{adapter_name}.conf"):
             message += "\nNetwork config saved successfully"
         else:
             message += "\nError creating network config file"
@@ -163,16 +186,16 @@ def wizard_basic():
         if helpers.check_wireguard(sudo_password):
             try:
                 helpers.run_sudo(
-                    f"cp {current_app.basedir}/output/server/wg0.conf /etc/wireguard/wg0.conf",
+                    f"cp {current_app.basedir}/output/server/{adapter_name}.conf /etc/wireguard/{adapter_name}.conf",
                     sudo_password,
                 )
             except Exception as e:
                 print(e)
                 message += (
-                    "\nError copying configuration file to /etc/wireguard/wg0.conf"
+                    f"\nError copying configuration file to /etc/wireguard/{adapter_name}.conf"
                 )
             else:
-                message += "\nConfiguration file copied to /etc/wireguard/wg0.conf"
+                message += f"\nConfiguration file copied to /etc/wireguard/{adapter_name}.conf"
         else:
             message += "\nWireguard is not installed on this machine"
 
