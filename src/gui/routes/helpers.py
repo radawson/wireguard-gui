@@ -1,6 +1,7 @@
 import ipaddress
 import os
 import re
+import shutil
 import socket
 from os.path import exists
 
@@ -11,55 +12,86 @@ from gui.errors import CommandExecutionError
 from gui.models import Network, Peer, db
 from gui.utils.command_runner import run_command, run_sudo_command
 
+from wireguard_tools import WireguardConfig, WireguardPeer, WireguardKey
+
+
+def _detect_install_command() -> list[str] | None:
+    """Return install commands for the detected package manager, or None."""
+    if shutil.which("apt-get"):
+        return [
+            "apt-get update",
+            "apt-get -y install wireguard",
+        ]
+    if shutil.which("dnf"):
+        return ["dnf -y install wireguard-tools"]
+    if shutil.which("yum"):
+        return ["yum -y install wireguard-tools"]
+    if shutil.which("pacman"):
+        return ["pacman -S --noconfirm wireguard-tools"]
+    if shutil.which("zypper"):
+        return ["zypper -n install wireguard-tools"]
+    if shutil.which("apk"):
+        return ["apk add wireguard-tools"]
+    return None
+
 
 def check_wireguard(sudo_password=""):
     if not sudo_password:
         sudo_password = current_app.config["SUDO_PASSWORD"]
+    if shutil.which("wg"):
+        return True
     if not exists("/etc/wireguard"):
         if run_command("uname -s").stdout.strip() == "Linux":
-            run_sudo("apt update", sudo_password)
-            run_sudo("apt -y full-upgrade", sudo_password)
-            run_sudo("apt -y install wireguard", sudo_password)
+            commands = _detect_install_command()
+            if commands is None:
+                current_app.logger.error("No supported package manager found")
+                return False
+            for cmd in commands:
+                run_sudo(cmd, sudo_password)
             return True
         return False
     return True
 
 
 def config_add_peer(config_string: str, peer: Peer) -> str:
-    new_config_string = config_string
-    new_config_string += (
-        f"\n[Peer]\nPublicKey = {peer.public_key}\nAllowedIPs = {peer.allowed_ips}\n"
-        f"Endpoint = {peer.endpoint_host}:{peer.endpoint_port}\n"
+    wg_peer = WireguardPeer(
+        public_key=peer.public_key,
+        allowed_ips=[peer.allowed_ips] if peer.allowed_ips else [],
+        endpoint_host=peer.endpoint_host or None,
+        endpoint_port=peer.endpoint_port or None,
+        preshared_key=peer.preshared_key or None,
     )
-    if peer.preshared_key:
-        new_config_string += f"PresharedKey = {peer.preshared_key}\n"
-    return new_config_string
+    lines = wg_peer.as_wgconfig_snippet()
+    return config_string + "\n".join(lines) + "\n"
 
 
 def config_build(peer: Peer, network: Network) -> str:
-    if peer.lighthouse:
-        subnet = str(network.subnet)
-        network_config_string = ""
-    else:
-        subnet = str(peer.subnet)
-        network_config_string = network.get_config()
-    config_file_string = (
-        f"[Interface]\nPrivateKey = {peer.private_key}\n"
-        f"Address = {peer.network_ip}/{subnet}\nListenPort = {peer.listen_port}\nSaveConfig = true\n"
-    )
-    if peer.post_down:
-        config_file_string += f"PostDown = {peer.post_down}\n"
-    if peer.post_up:
-        config_file_string += f"PostUp = {peer.post_up}\n"
-    if peer.dns:
-        config_file_string += f"DNS = {peer.dns}\n\n"
-    elif network.dns_server:
-        config_file_string += f"DNS = {network.dns_server}\n\n"
-    else:
-        config_file_string += "\n"
-    config_file_string += network_config_string
+    subnet = str(network.subnet) if peer.lighthouse else str(peer.subnet)
 
-    return config_file_string
+    dns_str = peer.dns or network.dns_server or ""
+    dns_entries: list[str] = [d.strip() for d in dns_str.split(",") if d.strip()] if dns_str else []
+
+    config = WireguardConfig(
+        private_key=peer.private_key,
+        listen_port=peer.listen_port,
+        addresses=[f"{peer.network_ip}/{subnet}"],
+        save_config=True,
+    )
+
+    for entry in dns_entries:
+        config._add_dns_entry(entry)
+
+    if peer.post_down:
+        config.postdown.append(peer.post_down)
+    if peer.post_up:
+        config.postup.append(peer.post_up)
+
+    config_string = config.to_wgconfig(wgquick_format=True)
+
+    if not peer.lighthouse:
+        config_string += "\n" + network.get_config()
+
+    return config_string
 
 
 def config_save(config_file_string, directory, filename) -> "bool":
@@ -93,11 +125,14 @@ def enable_ip_forwarding_v4(sudo_password):
 def generate_cert(cert_path, cert_name, key_name):
     if not exists(cert_path):
         os.makedirs(cert_path)
-    run_cmd(
-        "openssl req -nodes -x509 -newkey rsa:4096"
-        + f" -keyout {cert_path}/{key_name} -out {cert_path}/{cert_name}"
-        + " -subj /O=ClockWorx/CN=wireguard-gui"
-    )
+    try:
+        run_cmd(
+            "openssl req -nodes -x509 -newkey rsa:4096"
+            + f" -keyout {cert_path}/{key_name} -out {cert_path}/{cert_name}"
+            + " -subj /O=ClockWorx/CN=wireguard-gui"
+        )
+    except CommandExecutionError as exc:
+        current_app.logger.error("Failed to generate TLS certificate: %s", exc)
 
 
 def get_adapter_names():
@@ -146,13 +181,18 @@ def get_available_ip(network_id: int = 0) -> dict:
         subnet = network.subnet
 
     try:
-        network_cidr = ipaddress.IPv4Network(f"{base_ip}/{subnet}")
+        network_cidr = ipaddress.ip_network(f"{base_ip}/{subnet}", strict=False)
     except ValueError:
         current_app.logger.warning("Invalid network range for available IP lookup: %s/%s", base_ip, subnet)
         return {}
 
-    for ip in network_cidr:
-        if str(ip).split(".")[3] not in {"0", "255"}:
+    if isinstance(network_cidr, ipaddress.IPv4Network):
+        for ip in network_cidr:
+            octets = str(ip).split(".")
+            if octets[3] not in {"0", "255"}:
+                ip_dict[str(ip)] = None
+    else:
+        for ip in network_cidr.hosts():
             ip_dict[str(ip)] = None
 
     if network.peers_list:
@@ -239,8 +279,10 @@ def parse_wg_output(output):
     for line in output_lines:
         peer_match = re.match(r"\s*peer: (\S+)", line)
         endpoint_match = re.match(r"\s*endpoint: (\S+):(\d+)", line)
-        allowed_ips_match = re.match(r"\s*allowed ips: (\S+)", line)
-        transfer_match = re.match(r"\s*transfer: (\S+)", line)
+        allowed_ips_match = re.match(r"\s*allowed ips: (.+)", line)
+        transfer_match = re.match(
+            r"\s*transfer:\s+(.+?)\s+received,\s+(.+?)\s+sent", line
+        )
         handshake_match = re.match(r"\s*latest handshake: (.+ ago)", line)
 
         if peer_match:
@@ -250,12 +292,10 @@ def parse_wg_output(output):
             peers_data[current_peer]["endpoint"] = endpoint_match.group(1)
             peers_data[current_peer]["endpoint_port"] = endpoint_match.group(2)
         elif allowed_ips_match and current_peer:
-            peers_data[current_peer]["allowed_ips"] = allowed_ips_match.group(1)
+            peers_data[current_peer]["allowed_ips"] = allowed_ips_match.group(1).strip()
         elif transfer_match and current_peer:
-            transfer_data = transfer_match.group(1).split("/")
-            if len(transfer_data) >= 2:
-                peers_data[current_peer]["transfer_rx"] = transfer_data[0]
-                peers_data[current_peer]["transfer_tx"] = transfer_data[1]
+            peers_data[current_peer]["transfer_rx"] = transfer_match.group(1)
+            peers_data[current_peer]["transfer_tx"] = transfer_match.group(2)
         elif handshake_match and current_peer:
             time_str = handshake_match.group(1)
             time_lst = time_str[:-4].split(", ")
