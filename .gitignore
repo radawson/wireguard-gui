@@ -10,6 +10,9 @@ __pycache__/
 venv
 
 # Database file
+wg.db
+*.db-shm
+*.db-wal
 src/database.db
 src/wg.db
 
