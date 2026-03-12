@@ -54,6 +54,16 @@ def create_app(config_path: str | None = None, initialize_side_effects: bool = T
     if app.config.get("AUTO_CREATE_DB", True):
         with app.app_context():
             db.create_all()
+            if initialize_side_effects and app.config.get("MODE") == "server":
+                from .services import runtime_sync_service
+
+                try:
+                    summary = runtime_sync_service.sync_runtime_state(
+                        app.config.get("SUDO_PASSWORD", "")
+                    )
+                    app.logger.info(summary.to_message())
+                except Exception as exc:  # pragma: no cover - startup safety net
+                    app.logger.warning("WireGuard runtime startup sync failed: %s", exc)
 
     from flask_login import LoginManager
 

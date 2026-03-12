@@ -3,6 +3,7 @@ import json
 
 from flask_login import login_required
 from gui.routes import helpers
+from gui.errors import ValidationError
 from flask import (
     Blueprint,
     current_app,
@@ -11,6 +12,7 @@ from flask import (
     request,
 )
 from ..models import db, Network, Peer, subnets
+from gui.services import runtime_sync_service
 from wireguard_tools import WireguardKey
 
 
@@ -65,14 +67,20 @@ def wizard_basic():
         return render_template("wizard_setup.html", defaults=defaults, subnets=subnets)
     defaults["base_ip"] = base_ip
     # test subnet to make sure it is a valid subnet
-    if int(subnet) not in range(0, 33):
+    try:
+        subnet_int = int(subnet)
+    except (TypeError, ValueError):
+        message = "Please enter a valid subnet"
+        flash(message, "warning")
+        return render_template("wizard_setup.html", defaults=defaults, subnets=subnets)
+    if subnet_int not in range(0, 33):
         message = "Please enter a valid subnet"
         flash(message, "warning")
         return render_template("wizard_setup.html", defaults=defaults, subnets=subnets)
     listen_port = defaults["base_port"]
 
     # Append CIDR subnet to base_ip
-    allowed_ips = base_ip + "/" + str(subnet)
+    allowed_ips = base_ip + "/" + str(subnet_int)
 
     # Get the IP address of the current machine
     endpoint_host = helpers.get_public_ip()
@@ -83,6 +91,15 @@ def wizard_basic():
 
     # Get adapter name from rotation
     adapter_name = "wg0"
+    if current_app.config.get("MODE") == "server":
+        conflict = runtime_sync_service.get_adapter_conflict_reason(
+            adapter_name,
+            owner_network_id=None,
+            sudo_password=sudo_password,
+        )
+        if conflict:
+            flash(conflict, "danger")
+            return render_template("wizard_setup.html", defaults=defaults, subnets=subnets)
 
     # Create a lighthouse first
     # Create a new peer object
@@ -116,7 +133,7 @@ def wizard_basic():
         post_up=post_up_string,
         post_down=post_down_string,
         private_key=private_key,
-        subnet=subnet,
+        subnet=subnet_int,
     )
 
     if dns:
@@ -143,7 +160,7 @@ def wizard_basic():
         persistent_keepalive=25,
         private_key=new_peer.private_key,
         proxy=False,
-        subnet=subnet,
+        subnet=subnet_int,
     )
 
     # Add the new network to the database

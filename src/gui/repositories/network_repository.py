@@ -1,10 +1,11 @@
+from gui.models import db
 from gui.models import Network
 
 
 class NetworkRepository:
     @staticmethod
     def get(network_id: int) -> Network | None:
-        return Network.query.get(network_id)
+        return db.session.get(Network, network_id)
 
     @staticmethod
     def all() -> list[Network]:

@@ -11,6 +11,9 @@
         <div class="flex flex-wrap gap-2">
             <a href="{{url_for ('settings.test_db_entries')}}" class="app-btn" id="btn_load_db">Test Database</a>
             <a href="{{url_for ('user.register')}}" class="app-btn-secondary" id="btn_add_user">Add user</a>
+            <form action="{{ url_for('settings.resync_runtime') }}" method="post">
+                <button type="submit" class="app-btn-secondary" id="btn_resync_runtime">Resync from WireGuard</button>
+            </form>
             <form action="{{ url_for('settings.purge_db') }}" method="post" onsubmit="return confirm('Purge all entries from the database?')">
                 <button type="submit" class="app-btn-danger" id="btn_purge_db">Purge Database</button>
             </form>

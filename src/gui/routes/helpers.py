@@ -145,7 +145,13 @@ def get_available_ip(network_id: int = 0) -> dict:
     else:
         subnet = network.subnet
 
-    for ip in ipaddress.IPv4Network(f"{base_ip}/{subnet}"):
+    try:
+        network_cidr = ipaddress.IPv4Network(f"{base_ip}/{subnet}")
+    except ValueError:
+        current_app.logger.warning("Invalid network range for available IP lookup: %s/%s", base_ip, subnet)
+        return {}
+
+    for ip in network_cidr:
         if str(ip).split(".")[3] not in {"0", "255"}:
             ip_dict[str(ip)] = None
 
@@ -157,6 +163,18 @@ def get_available_ip(network_id: int = 0) -> dict:
 
 def get_lighthouses():
     return Peer.query.filter_by(lighthouse=True).all()
+
+
+def get_peer_public_key(peer: Peer) -> str | None:
+    description = peer.description or ""
+    for line in description.splitlines():
+        line = line.strip()
+        if line.startswith("runtime_public_key="):
+            return line.split("=", 1)[1].strip()
+    try:
+        return peer.get_public_key()
+    except (ValueError, TypeError):
+        return None
 
 
 def get_network(network_id: int) -> Network:
@@ -273,8 +291,12 @@ def remove_peers_all(network_id: int, sudo_password=""):
     message += f"\n\tNetwork {network.name} found"
     peers = Peer.query.filter_by(network_id=network.id).all()
     for peer in peers:
+        peer_public_key = get_peer_public_key(peer)
+        if not peer_public_key:
+            message += f"\n\t\tSkipped peer {peer.name} because no valid public key was found"
+            continue
         run_sudo(
-            f"wg set {network.adapter_name} peer {str(peer.get_public_key())} remove",
+            f"wg set {network.adapter_name} peer {peer_public_key} remove",
             sudo_password,
         )
         message += f"\n\t\tRemoved peer {peer.name} from adapter {network.adapter_name}"

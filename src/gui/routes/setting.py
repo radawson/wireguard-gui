@@ -1,6 +1,7 @@
 from flask import Blueprint, current_app, flash, render_template, redirect, request, url_for
 from flask_login import login_required
 from ..models import db, Config, Network, Peer, config_load_test_db,network_load_test_db,peer_load_test_db
+from gui.services import runtime_sync_service
 
 settings = Blueprint('settings', __name__, url_prefix="/settings")
 
@@ -103,4 +104,15 @@ def purge_db():
     db.session.commit()
     message = "Database purged successfully!"
     flash(message, "success")
+    return redirect(url_for("settings.settings_detail"))
+
+
+@settings.route("/resync_runtime", methods=["POST"])
+@login_required
+def resync_runtime():
+    if current_app.config.get("MODE") != "server":
+        flash("Runtime sync is only available in server mode.", "warning")
+        return redirect(url_for("settings.settings_detail"))
+    summary = runtime_sync_service.sync_runtime_state(current_app.config.get("SUDO_PASSWORD", ""))
+    flash(summary.to_message(), "info")
     return redirect(url_for("settings.settings_detail"))

@@ -24,6 +24,10 @@ All notable changes to this project are documented in this file.
   - `docs/DEVELOPER_GUIDE.md`
   - `docs/RELEASE_CHECKLIST.md`
 - Added smoke/regression tests in `tests/test_app_smoke.py`.
+- Added WireGuard runtime sync and adapter safety controls:
+  - new runtime sync service in `src/gui/services/runtime_sync_service.py`
+  - startup server-mode auto sync plus manual admin resync action
+  - adapter conflict checks for wizard/network create-update and activation preflight
 - Added Tailwind build pipeline:
   - `package.json`
   - `tailwind.config.js`
@@ -37,6 +41,8 @@ All notable changes to this project are documented in this file.
     `network_detail`, `peer_detail`, `login`, `register`, `index`, `about`, `profile`, `test`.
 - Reworked network/peer route flows to use service-layer orchestration and consistent JSON error handling.
 - Improved command execution reliability by adding non-zero exit handling and typed command failures.
+- Improved server-mode safety by preventing adapter overwrite when live WireGuard interfaces already exist.
+- Updated IPv4 forwarding persistence to use `/etc/sysctl.d/99-wireguard-gui.conf` with `sysctl --system`.
 - Updated app factory to support explicit config path and optional startup side effects.
 - Updated docs index in `README.md` to point to dedicated docs pages.
 

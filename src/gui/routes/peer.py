@@ -42,7 +42,7 @@ def query_all_peers(network_id=None):
         return peer_query
     status_by_adapter = {}
     for peer in peer_query:
-        peer.public_key = wg_adapter.get_public_key(peer.private_key)
+        peer.public_key = helpers.get_peer_public_key(peer)
         network = helpers.get_network(peer.network_id)
         if network.name == "Invalid Network placeholder":
             continue
@@ -51,6 +51,8 @@ def query_all_peers(network_id=None):
                 network.adapter_name
             )
         current_peers = status_by_adapter[network.adapter_name]
+        if not peer.public_key:
+            continue
         for key in current_peers:
             if str(peer.public_key) == str(key):
                 if "latest_handshake" in current_peers[str(peer.public_key)]:
@@ -76,7 +78,13 @@ def query_all_networks():
 @peers.route("/", methods=["GET", "POST"])
 @login_required
 def peers_all():
-    network_id = request.args.get("network_id")
+    network_id_raw = request.args.get("network_id")
+    network_id = None
+    if network_id_raw:
+        try:
+            network_id = int(network_id_raw)
+        except ValueError:
+            flash("Ignoring invalid network filter value.", "warning")
     peer_list = query_all_peers(network_id)
     if getattr(g, "wg_status_unavailable", False):
         flash(
@@ -108,6 +116,8 @@ def peers_add():
             return redirect(url_for("peers.peer_detail", peer_id=peer.id))
         except (ValidationError, EntityNotFoundError) as exc:
             flash(str(exc), "danger")
+        except ValueError as exc:
+            flash(str(exc), "danger")
         except CommandExecutionError as exc:
             flash(f"Peer added to database, but failed on server: {exc}", "warning")
 
@@ -131,9 +141,13 @@ def peer_update(peer_id):
     try:
         peer_service.update_peer_from_form(peer, request.form)
         flash(f"Peer {peer_id} updated in database", "success")
-    except Exception as exc:
+    except (ValidationError, EntityNotFoundError, ValueError) as exc:
         db.session.rollback()
         flash(str(exc), "danger")
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.exception("Unexpected peer update error for peer_id=%s", peer_id)
+        flash("Error updating peer", "danger")
     return redirect(url_for("peers.peers_all"))
 
 
@@ -147,9 +161,12 @@ def peer_delete(peer_id):
     try:
         if current_app.config["MODE"] == "server":
             network = helpers.get_network(peer.network_id)
+            peer_public_key = helpers.get_peer_public_key(peer)
+            if not peer_public_key:
+                raise ValidationError("Peer does not contain a valid WireGuard public key")
             wg_adapter.remove_peer(
                 network.adapter_name,
-                peer.get_public_key(),
+                peer_public_key,
                 current_app.config["SUDO_PASSWORD"],
             )
         peer_service.remove_peer(peer_id)
@@ -188,9 +205,35 @@ def peer_api(peer_id):
         peer = Peer.query.get(peer_id)
         if not peer:
             return jsonify({"error": "Peer not found"}), 404
-        for key, value in (request.json or {}).items():
-            setattr(peer, key, value)
-        db.session.commit()
+        data = request.json or {}
+        allowed_fields = {
+            "name",
+            "description",
+            "dns",
+            "endpoint_host",
+            "listen_port",
+            "network_ip",
+            "subnet",
+            "network_id",
+            "preshared_key",
+            "lighthouse",
+            "private_key",
+            "active",
+        }
+        unknown_fields = sorted(set(data.keys()) - allowed_fields)
+        if unknown_fields:
+            return jsonify({"error": f"Unknown fields: {', '.join(unknown_fields)}"}), 400
+        try:
+            for key, value in data.items():
+                setattr(peer, key, value)
+            db.session.commit()
+        except (ValueError, TypeError) as exc:
+            db.session.rollback()
+            return jsonify({"error": str(exc)}), 400
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception("Unexpected peer API patch error for peer_id=%s", peer_id)
+            return jsonify({"error": "Unable to update peer"}), 500
         return jsonify(peer.to_dict())
     elif request.method == "DELETE":
         peer = Peer.query.get(peer_id)

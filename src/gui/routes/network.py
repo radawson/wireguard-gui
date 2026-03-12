@@ -96,12 +96,27 @@ def network_delete(network_id):
     network = Network.query.filter_by(id=network_id).first()
     if not network:
         return jsonify({"category": "danger", "message": "Network not found"}), 404
-    message = helpers.remove_peers_all(network.id)
-    db.session.delete(network)
-    db.session.commit()
-    message += f"\nNetwork deleted successfully"
-    category = "success"
-    return jsonify({"category": category, "message": message})
+    try:
+        message = helpers.remove_peers_all(network.id)
+        db.session.delete(network)
+        db.session.commit()
+        message += "\nNetwork deleted successfully"
+        return jsonify({"category": "success", "message": message})
+    except CommandExecutionError as exc:
+        db.session.rollback()
+        return (
+            jsonify(
+                {
+                    "category": "danger",
+                    "message": f"Failed to remove network peers from running server: {exc}",
+                }
+            ),
+            400,
+        )
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Unexpected network delete error for network_id=%s", network_id)
+        return jsonify({"category": "danger", "message": "Error deleting network"}), 500
 
 
 @networks.route("/activate/<int:network_id>", methods=["POST"])
@@ -148,9 +163,34 @@ def network_api(network_id):
         network = Network.query.get(network_id)
         if not network:
             return jsonify({"error": "Network not found"}), 404
-        for key, value in (request.json or {}).items():
-            setattr(network, key, value)
-        db.session.commit()
+        data = request.json or {}
+        allowed_fields = {
+            "name",
+            "active",
+            "adapter_name",
+            "allowed_ips",
+            "base_ip",
+            "description",
+            "dns_server",
+            "persistent_keepalive",
+            "private_key",
+            "proxy",
+            "subnet",
+        }
+        unknown_fields = sorted(set(data.keys()) - allowed_fields)
+        if unknown_fields:
+            return jsonify({"error": f"Unknown fields: {', '.join(unknown_fields)}"}), 400
+        try:
+            for key, value in data.items():
+                setattr(network, key, value)
+            db.session.commit()
+        except (ValueError, TypeError) as exc:
+            db.session.rollback()
+            return jsonify({"error": str(exc)}), 400
+        except Exception:
+            db.session.rollback()
+            current_app.logger.exception("Unexpected network API patch error for network_id=%s", network_id)
+            return jsonify({"error": "Unable to update network"}), 500
         return jsonify(network.to_dict())
     elif request.method == "DELETE":
         network = Network.query.get(network_id)
