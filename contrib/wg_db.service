@@ -1,0 +1,15 @@
+[Unit]
+Description=Wireguard GUI
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=ubuntu
+WorkingDirectory=/home/ubuntu/wireguard-gui/src
+ExecStart=/home/ubuntu/wireguard-gui/.venv/bin/python /home/ubuntu/wireguard-gui/src/run.py
+
+[Install]
+WantedBy=multi-user.target

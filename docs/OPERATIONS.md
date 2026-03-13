@@ -4,6 +4,19 @@
 
 - Start app with `python src/run.py` for local/dev.
 - For production, run WSGI behind reverse proxy and systemd.
+- A sample systemd unit is provided in `contrib/wg_db.service`.
+  Copy it to `/etc/systemd/system/`, adjust `User`, `WorkingDirectory`,
+  and paths to match your install, then enable:
+
+```bash
+sudo cp contrib/wg_db.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now wg_db.service
+```
+
+**Important:** `ExecStart` must point to the **venv** Python
+(e.g. `/home/<user>/wireguard-gui/.venv/bin/python`), not `/usr/bin/python3`.
+System Python will not have the project's dependencies installed.
 
 ## Backups
 
