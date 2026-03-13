@@ -10,6 +10,8 @@ RestartSec=1
 User=ubuntu
 WorkingDirectory=/home/ubuntu/wireguard-gui/src
 ExecStart=/home/ubuntu/wireguard-gui/.venv/bin/python /home/ubuntu/wireguard-gui/src/run.py
+CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
 
 [Install]
 WantedBy=multi-user.target

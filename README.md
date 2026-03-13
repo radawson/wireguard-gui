@@ -4,7 +4,7 @@ WireGuard GUI is a Flask-based management panel for WireGuard networks, focused 
 
 ## Highlights
 
-- Native in-repo WireGuard integration (`src/wireguard_tools`) instead of external dependency coupling.
+- Uses the [`wireguard-tools`](https://github.com/radawson/wireguard-tools) Python library (forked from [cmusatyalab/wireguard-tools](https://github.com/cmusatyalab/wireguard-tools)) for pure-Python WireGuard UAPI, netlink, and wg-quick operations.
 - Tailwind frontend stack with material-inspired UI patterns.
 - Modular backend boundaries:
   - routes/controllers
@@ -20,6 +20,7 @@ git clone https://github.com/radawson/wireguard-gui
 cd wireguard-gui
 python3 -m venv .venv
 source .venv/bin/activate
+pip install -e ../wireguard-tools  # or: pip install wireguard-tools>=0.7.0
 pip install -r requirements.txt
 npm install
 npm run build:css

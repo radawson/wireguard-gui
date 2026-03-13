@@ -89,10 +89,35 @@ def remove_peer(adapter_name: str, public_key: str, sudo_password: str) -> str:
 
 
 def up_adapter(adapter_name: str, sudo_password: str) -> str:
+    """Bring up a WireGuard interface.
+
+    Tries the pure-Python wg_quick.up() first (works when running with
+    CAP_NET_ADMIN). Falls back to shelling out via sudo wg-quick.
+    """
     iface = _validate_interface(adapter_name)
-    return run_sudo_command(f"wg-quick up {shlex.quote(iface)}", sudo_password).stdout
+    try:
+        from wireguard_tools.wg_quick import up as wg_up
+
+        wg_up(iface)
+        return ""
+    except Exception:
+        return run_sudo_command(
+            f"wg-quick up {shlex.quote(iface)}", sudo_password
+        ).stdout
 
 
 def down_adapter(adapter_name: str, sudo_password: str) -> str:
+    """Bring down a WireGuard interface.
+
+    Tries the pure-Python wg_quick.down() first. Falls back to sudo wg-quick.
+    """
     iface = _validate_interface(adapter_name)
-    return run_sudo_command(f"wg-quick down {shlex.quote(iface)}", sudo_password).stdout
+    try:
+        from wireguard_tools.wg_quick import down as wg_down
+
+        wg_down(iface)
+        return ""
+    except Exception:
+        return run_sudo_command(
+            f"wg-quick down {shlex.quote(iface)}", sudo_password
+        ).stdout

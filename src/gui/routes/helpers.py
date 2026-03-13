@@ -75,7 +75,7 @@ def config_build(peer: Peer, network: Network) -> str:
         private_key=peer.private_key,
         listen_port=peer.listen_port,
         addresses=[f"{peer.network_ip}/{subnet}"],
-        save_config=True,
+        saveconfig=True,
     )
 
     for entry in dns_entries:

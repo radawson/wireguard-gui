@@ -8,6 +8,10 @@
         <h2 class="text-2xl font-semibold">Peers</h2>
         <a href="{{ url_for('peers.peers_add') }}" class="app-btn">Add Peer</a>
     </div>
+    <div id="network-filter-banner" class="hidden items-center gap-2 rounded-md bg-sky-50 px-4 py-2 text-sm text-sky-800">
+        <span>Showing peers for network: <strong id="network-filter-name"></strong></span>
+        <a href="{{ url_for('peers.peers_all') }}" class="ml-2 rounded bg-sky-200 px-2 py-0.5 text-xs font-medium hover:bg-sky-300">Show all</a>
+    </div>
     <div>
         <label class="app-label" for="datatable-search-input">Search</label>
         <input type="text" class="app-input" id="datatable-search-input" placeholder="Filter peers..." />
@@ -41,6 +45,10 @@
     const tbody = document.getElementById('peers-tbody');
     const searchInput = document.getElementById('datatable-search-input');
     const theadRow = document.getElementById('peers-thead-row');
+    const filterBanner = document.getElementById('network-filter-banner');
+    const filterName = document.getElementById('network-filter-name');
+    const urlParams = new URLSearchParams(window.location.search);
+    const networkIdFilter = urlParams.get('network_id') ? Number(urlParams.get('network_id')) : null;
     let rowsData = [];
     let displayData = [];
     const sortState = { col: null, asc: true };
@@ -58,10 +66,27 @@
         });
     });
 
+    if (networkIdFilter !== null) {
+        fetch("{{ url_for('networks.network_api', network_id=0) }}".replace('0', networkIdFilter))
+            .then((r) => r.ok ? r.json() : null)
+            .then((net) => {
+                if (net && net.name) {
+                    filterName.textContent = net.name;
+                } else {
+                    filterName.textContent = '#' + networkIdFilter;
+                }
+                filterBanner.classList.remove('hidden');
+                filterBanner.classList.add('flex');
+            });
+    }
+
     function loadPeers() {
         fetch("{{ url_for('peers.peer_api',peer_id=0)}}")
             .then((response) => response.json())
             .then((data) => {
+                if (networkIdFilter !== null) {
+                    data = data.filter((p) => p.network_id === networkIdFilter);
+                }
                 rowsData = data;
                 displayData = [...data];
                 renderTable(displayData);

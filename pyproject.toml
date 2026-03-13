@@ -19,6 +19,7 @@ classifiers = [
 ]
 
 dependencies = [
+  "wireguard-tools>=0.7.0",
   "alembic>=1.13.1",
   "arrow>=1.3.0",
   "attrs>=23.2.0",
@@ -84,6 +85,9 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/radawson/wireguard-gui"
 Issues = "https://github.com/radawson/wireguard-gui/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gui"]
 
 [tool.hatch.version]
 path = "src/gui/__init__.py"
