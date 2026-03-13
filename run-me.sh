@@ -43,6 +43,20 @@ set_repo_root() {
   fi
 }
 
+install_node_deps() {
+  log "Installing Node dependencies"
+  # Check if node is installed
+  if ! command -v node >/dev/null 2>&1; then
+    log "Node is not installed"
+    log "Installing Node.js"
+    curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+  fi
+  cd "${REPO_ROOT}"
+  log "Installing Node dependencies"
+  npm install
+}
+
 install_python_deps() {
   cd "${REPO_ROOT}"
   if [[ ! -d ".venv" ]]; then
@@ -91,10 +105,11 @@ EOF
 
 main() {
   require_non_root
+  require_command curl
   require_command git
   require_command python3
-  require_command npm
   set_repo_root
+  install_node_deps
   install_python_deps
   build_frontend_css
   print_config_reminder
