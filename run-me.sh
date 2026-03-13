@@ -48,6 +48,7 @@ install_node_deps() {
   # Check if node is installed
   if ! command -v node >/dev/null 2>&1; then
     log "Node is not installed"
+    require_command curl
     log "Installing Node.js"
     curl -fsSL https://deb.nodesource.com/setup_lts.x | sudo -E bash -
     sudo apt-get install -y nodejs
@@ -73,8 +74,6 @@ install_python_deps() {
 
 build_frontend_css() {
   cd "${REPO_ROOT}"
-  log "Installing frontend dependencies"
-  npm install
   log "Building Tailwind CSS"
   npm run build:css
 }
@@ -105,7 +104,6 @@ EOF
 
 main() {
   require_non_root
-  require_command curl
   require_command git
   require_command python3
   set_repo_root
