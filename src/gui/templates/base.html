@@ -111,6 +111,79 @@
         function showAlert(message) {
             window.alert(message.message || "Action completed");
         }
+
+        /**
+         * Generic column-sort helper for client-rendered tables.
+         *
+         * @param {Array}    dataArray  - The source array to sort (mutated in place).
+         * @param {number}   colIndex   - Column index that was clicked.
+         * @param {Array}    keys       - Array of {key, type} per column.
+         *        key  : property name on the data object, OR a function(row)->value.
+         *        type : "string" | "number" | "bool"  (default "string")
+         * @param {Object}   state      - {col: number|null, asc: boolean} persisted by caller.
+         * @param {Function} renderFn   - Called with the sorted dataArray to re-render the table.
+         * @param {Element}  theadRow   - The <tr> inside <thead> so sort indicators can be updated.
+         */
+        function sortTable(dataArray, colIndex, keys, state, renderFn, theadRow) {
+            if (state.col === colIndex) {
+                state.asc = !state.asc;
+            } else {
+                state.col = colIndex;
+                state.asc = true;
+            }
+            const spec = keys[colIndex];
+            const extract = typeof spec.key === 'function' ? spec.key : (row) => row[spec.key];
+            const type = spec.type || 'string';
+            const dir = state.asc ? 1 : -1;
+
+            dataArray.sort((a, b) => {
+                let va = extract(a);
+                let vb = extract(b);
+                if (va == null) va = '';
+                if (vb == null) vb = '';
+                if (type === 'number') {
+                    return (Number(va) - Number(vb)) * dir;
+                }
+                if (type === 'bool') {
+                    return ((va ? 1 : 0) - (vb ? 1 : 0)) * dir;
+                }
+                return String(va).localeCompare(String(vb)) * dir;
+            });
+
+            theadRow.querySelectorAll('th').forEach((th, i) => {
+                const arrow = th.querySelector('.sort-arrow');
+                if (!arrow) return;
+                if (i === colIndex) {
+                    arrow.textContent = state.asc ? ' \u25B2' : ' \u25BC';
+                    arrow.style.opacity = '1';
+                } else {
+                    arrow.textContent = ' \u25B4';
+                    arrow.style.opacity = '0.3';
+                }
+            });
+
+            renderFn(dataArray);
+        }
+
+        /**
+         * Re-sort an array using the current sort state without toggling direction.
+         * Use after filtering to preserve the active sort order.
+         */
+        function resortInPlace(dataArray, state, keys) {
+            const spec = keys[state.col];
+            const extract = typeof spec.key === 'function' ? spec.key : (row) => row[spec.key];
+            const type = spec.type || 'string';
+            const dir = state.asc ? 1 : -1;
+            dataArray.sort((a, b) => {
+                let va = extract(a);
+                let vb = extract(b);
+                if (va == null) va = '';
+                if (vb == null) vb = '';
+                if (type === 'number') return (Number(va) - Number(vb)) * dir;
+                if (type === 'bool') return ((va ? 1 : 0) - (vb ? 1 : 0)) * dir;
+                return String(va).localeCompare(String(vb)) * dir;
+            });
+        }
     </script>
     {% block scripts %} {% endblock %}
 </body>

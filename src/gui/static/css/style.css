@@ -5,3 +5,12 @@ body {
 a {
     text-underline-offset: 2px;
 }
+
+th.sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+th.sortable:hover {
+    background-color: rgb(241 245 249);  /* slate-100 */
+}

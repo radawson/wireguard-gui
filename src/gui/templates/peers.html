@@ -15,12 +15,12 @@
     <div class="overflow-x-auto app-card">
         <table class="min-w-full text-sm">
             <thead class="border-b border-slate-200 text-left">
-                <tr>
-                    <th class="px-3 py-2">Activation</th>
-                    <th class="px-3 py-2">Name</th>
-                    <th class="px-3 py-2">Public Key</th>
-                    <th class="px-3 py-2">Net IP</th>
-                    <th class="px-3 py-2">Endpoint</th>
+                <tr id="peers-thead-row">
+                    <th class="sortable px-3 py-2">Activation<span class="sort-arrow text-xs opacity-30"> &#9652;</span></th>
+                    <th class="sortable px-3 py-2">Name<span class="sort-arrow text-xs opacity-30"> &#9652;</span></th>
+                    <th class="sortable px-3 py-2">Public Key<span class="sort-arrow text-xs opacity-30"> &#9652;</span></th>
+                    <th class="sortable px-3 py-2">Net IP<span class="sort-arrow text-xs opacity-30"> &#9652;</span></th>
+                    <th class="sortable px-3 py-2">Endpoint<span class="sort-arrow text-xs opacity-30"> &#9652;</span></th>
                     <th class="px-3 py-2">Actions</th>
                 </tr>
             </thead>
@@ -40,14 +40,31 @@
 <script>
     const tbody = document.getElementById('peers-tbody');
     const searchInput = document.getElementById('datatable-search-input');
+    const theadRow = document.getElementById('peers-thead-row');
     let rowsData = [];
+    let displayData = [];
+    const sortState = { col: null, asc: true };
+    const sortKeys = [
+        { key: 'active', type: 'bool' },
+        { key: 'name', type: 'string' },
+        { key: (r) => r.private_key ? wireguard.getPublicKey(r.private_key) : '', type: 'string' },
+        { key: (r) => `${r.network_ip || ''}/${r.subnet || ''}`, type: 'string' },
+        { key: (r) => `${r.endpoint_host || ''}:${r.listen_port || ''}`, type: 'string' },
+    ];
+
+    theadRow.querySelectorAll('th.sortable').forEach((th, i) => {
+        th.addEventListener('click', () => {
+            sortTable(displayData, i, sortKeys, sortState, renderTable, theadRow);
+        });
+    });
 
     function loadPeers() {
         fetch("{{ url_for('peers.peer_api',peer_id=0)}}")
             .then((response) => response.json())
             .then((data) => {
                 rowsData = data;
-                renderTable(rowsData);
+                displayData = [...data];
+                renderTable(displayData);
             });
     }
 
@@ -103,10 +120,13 @@
 
     searchInput.addEventListener('input', () => {
         const query = searchInput.value.toLowerCase().trim();
-        const filtered = rowsData.filter((peer) => {
+        displayData = rowsData.filter((peer) => {
             return `${peer.name} ${peer.network_ip} ${peer.endpoint_host}`.toLowerCase().includes(query);
         });
-        renderTable(filtered);
+        if (sortState.col !== null) {
+            resortInPlace(displayData, sortState, sortKeys);
+        }
+        renderTable(displayData);
     });
 
     window.onload = loadPeers;
