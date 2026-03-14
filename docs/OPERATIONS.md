@@ -1,22 +1,50 @@
 # Operations
 
-## Service Lifecycle
+## Two-Service Architecture
 
-- Start app with `python src/run.py` for local/dev.
-- For production, run WSGI behind reverse proxy and systemd.
-- A sample systemd unit is provided in `contrib/wg_db.service`.
-  Copy it to `/etc/systemd/system/`, adjust `User`, `WorkingDirectory`,
-  and paths to match your install, then enable:
+The system uses **privilege separation** via two systemd services:
+
+| Service | User | Purpose |
+| --- | --- | --- |
+| `wg-daemon.service` | root | Privileged helper that manages WireGuard interfaces, peers, and routes via a Unix socket |
+| `wg_db.service` | unprivileged | Flask web GUI that connects to `wg-daemon` over `/var/run/wg-daemon.sock` |
+
+The GUI never runs as root and never needs `sudo`. All privileged
+WireGuard operations are dispatched to `wg-daemon` over a JSON-over-Unix-socket protocol.
+
+### Setup
+
+1. Create the `wireguard` group (used for socket permissions):
 
 ```bash
+sudo groupadd wireguard
+sudo usermod -aG wireguard <gui-user>
+```
+
+1. Install both services:
+
+```bash
+# Privileged daemon (from wireguard-tools repo)
+sudo cp /path/to/wireguard-tools/contrib/wg-daemon.service /etc/systemd/system/
+# Edit ExecStart to point at the venv where wireguard-tools is installed
+
+# Web GUI
 sudo cp contrib/wg_db.service /etc/systemd/system/
+# Edit User, WorkingDirectory, ExecStart to match your install
+
 sudo systemctl daemon-reload
-sudo systemctl enable --now wg_db.service
+sudo systemctl enable --now wg-daemon.service wg_db.service
 ```
 
 **Important:** `ExecStart` must point to the **venv** Python
 (e.g. `/home/<user>/wireguard-gui/.venv/bin/python`), not `/usr/bin/python3`.
 System Python will not have the project's dependencies installed.
+
+### Socket Configuration
+
+The daemon listens on `/var/run/wg-daemon.sock` by default. Override
+with the `WG_DAEMON_SOCKET` environment variable (set in both service
+files if changed).
 
 ## Backups
 

@@ -1,17 +1,25 @@
 import os
 import re
-import shlex
-import tempfile
 
-from wireguard_tools import WireguardDevice, WireguardKey
-
-from gui.utils.command_runner import run_sudo_command
+from wireguard_tools import WireguardKey
+from wireguard_tools.daemon_client import WgDaemonClient
 
 _IFACE_RE = re.compile(r"^[a-zA-Z0-9_=+.\-]{1,15}$")
 _BASE64_RE = re.compile(r"^[A-Za-z0-9+/]{42}[AEIMQUYcgkosw048]=$")
 _CIDR_RE = re.compile(
     r"^[0-9a-fA-F.:]+/\d{1,3}(,[0-9a-fA-F.:]+/\d{1,3})*$"
 )
+
+_client: WgDaemonClient | None = None
+
+
+def _get_client() -> WgDaemonClient:
+    global _client  # noqa: PLW0603
+    if _client is None:
+        _client = WgDaemonClient(
+            socket_path=os.environ.get("WG_DAEMON_SOCKET"),
+        )
+    return _client
 
 
 def _validate_interface(name: str) -> str:
@@ -42,14 +50,14 @@ def get_public_key(private_key: str) -> str:
 
 
 def list_devices() -> list[str]:
-    return [device.interface for device in WireguardDevice.list()]
+    return _get_client().list_devices()
 
 
 def add_peer(
     adapter_name: str,
     public_key: str,
     allowed_ips: str,
-    sudo_password: str,
+    sudo_password: str | None = None,
     *,
     endpoint: str | None = None,
     preshared_key: str | None = None,
@@ -58,66 +66,49 @@ def add_peer(
     iface = _validate_interface(adapter_name)
     key = _validate_key(public_key)
     ips = _validate_allowed_ips(allowed_ips)
-    cmd = f"wg set {shlex.quote(iface)} peer {shlex.quote(key)} allowed-ips {shlex.quote(ips)}"
+
+    kwargs: dict = {
+        "allowed_ips": ips.split(","),
+    }
     if endpoint is not None:
-        cmd += f" endpoint {shlex.quote(endpoint)}"
-    psk_fd = None
-    psk_path = None
-    try:
-        if preshared_key is not None:
-            _validate_key(preshared_key)
-            psk_fd, psk_path = tempfile.mkstemp(prefix="wg_psk_")
-            os.write(psk_fd, preshared_key.encode())
-            os.close(psk_fd)
-            psk_fd = None
-            cmd += f" preshared-key {shlex.quote(psk_path)}"
-        if persistent_keepalive is not None:
-            cmd += f" persistent-keepalive {int(persistent_keepalive)}"
-        return run_sudo_command(cmd, sudo_password).stdout
-    finally:
-        if psk_fd is not None:
-            os.close(psk_fd)
-        if psk_path is not None:
-            os.unlink(psk_path)
+        if ":" in endpoint:
+            host, _, port = endpoint.rpartition(":")
+            kwargs["endpoint_host"] = host.strip("[]")
+            kwargs["endpoint_port"] = int(port)
+    if preshared_key is not None:
+        _validate_key(preshared_key)
+        kwargs["preshared_key"] = preshared_key
+    if persistent_keepalive is not None:
+        kwargs["persistent_keepalive"] = int(persistent_keepalive)
+
+    _get_client().set_peer(iface, key, **kwargs)
+    return ""
 
 
-def remove_peer(adapter_name: str, public_key: str, sudo_password: str) -> str:
+def remove_peer(
+    adapter_name: str,
+    public_key: str,
+    sudo_password: str | None = None,
+) -> str:
     iface = _validate_interface(adapter_name)
     key = _validate_key(public_key)
-    cmd = f"wg set {shlex.quote(iface)} peer {shlex.quote(key)} remove"
-    return run_sudo_command(cmd, sudo_password).stdout
+    _get_client().remove_peer(iface, key)
+    return ""
 
 
-def up_adapter(adapter_name: str, sudo_password: str) -> str:
-    """Bring up a WireGuard interface.
-
-    Tries the pure-Python wg_quick.up() first (works when running with
-    CAP_NET_ADMIN). Falls back to shelling out via sudo wg-quick.
-    """
+def up_adapter(
+    adapter_name: str,
+    sudo_password: str | None = None,
+) -> str:
     iface = _validate_interface(adapter_name)
-    try:
-        from wireguard_tools.wg_quick import up as wg_up
-
-        wg_up(iface)
-        return ""
-    except Exception:
-        return run_sudo_command(
-            f"wg-quick up {shlex.quote(iface)}", sudo_password
-        ).stdout
+    _get_client().up(iface)
+    return ""
 
 
-def down_adapter(adapter_name: str, sudo_password: str) -> str:
-    """Bring down a WireGuard interface.
-
-    Tries the pure-Python wg_quick.down() first. Falls back to sudo wg-quick.
-    """
+def down_adapter(
+    adapter_name: str,
+    sudo_password: str | None = None,
+) -> str:
     iface = _validate_interface(adapter_name)
-    try:
-        from wireguard_tools.wg_quick import down as wg_down
-
-        wg_down(iface)
-        return ""
-    except Exception:
-        return run_sudo_command(
-            f"wg-quick down {shlex.quote(iface)}", sudo_password
-        ).stdout
+    _get_client().down(iface)
+    return ""

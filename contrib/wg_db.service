@@ -1,6 +1,7 @@
 [Unit]
 Description=Wireguard GUI
-After=network.target
+After=network.target wg-daemon.service
+Wants=wg-daemon.service
 StartLimitIntervalSec=0
 
 [Service]
@@ -8,10 +9,9 @@ Type=simple
 Restart=always
 RestartSec=1
 User=ubuntu
+SupplementaryGroups=wireguard
 WorkingDirectory=/home/ubuntu/wireguard-gui/src
 ExecStart=/home/ubuntu/wireguard-gui/.venv/bin/python /home/ubuntu/wireguard-gui/src/run.py
-CapabilityBoundingSet=CAP_NET_RAW CAP_NET_ADMIN
-AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN
 
 [Install]
 WantedBy=multi-user.target
