@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Idempotent installer mirroring docs/INSTALLATION.md
+VERSION=0.2.0
 
 set -euo pipefail
+
+REPO_ROOT=""
+TOOLS_REPO_ROOT=""
 
 log() {
   printf "\n[run-me] %s\n" "$1"
@@ -43,6 +47,26 @@ set_repo_root() {
   fi
 }
 
+set_tools_repo_root() {
+  # Prefer sibling repo in split-project layout.
+  local sibling
+  sibling="$(cd "${REPO_ROOT}/.." && pwd)/wireguard-tools"
+  if [[ -d "${sibling}/.git" ]]; then
+    TOOLS_REPO_ROOT="${sibling}"
+    log "Using wireguard-tools repository at ${TOOLS_REPO_ROOT}"
+    return
+  fi
+
+  # Otherwise mirror quick-start: clone into ~/wireguard-tools if missing.
+  TOOLS_REPO_ROOT="${HOME}/wireguard-tools"
+  if [[ ! -d "${TOOLS_REPO_ROOT}/.git" ]]; then
+    log "Cloning wireguard-tools to ${TOOLS_REPO_ROOT}"
+    git clone https://github.com/radawson/wireguard-tools "${TOOLS_REPO_ROOT}"
+  else
+    log "Using existing wireguard-tools repository at ${TOOLS_REPO_ROOT}"
+  fi
+}
+
 install_node_deps() {
   log "Installing Node dependencies"
   # Check if node is installed
@@ -69,6 +93,13 @@ install_python_deps() {
 
   log "Installing Python dependencies"
   .venv/bin/pip install --upgrade pip
+  if [[ -f "${TOOLS_REPO_ROOT}/pyproject.toml" ]]; then
+    log "Installing local wireguard-tools package from ${TOOLS_REPO_ROOT}"
+    .venv/bin/pip install -e "${TOOLS_REPO_ROOT}"
+  else
+    log "wireguard-tools repository not found; installing from PyPI"
+    .venv/bin/pip install "wireguard-tools>=0.7.0"
+  fi
   .venv/bin/pip install -r requirements.txt
 }
 
@@ -99,6 +130,16 @@ Run app:
 Optional (production WSGI):
   cd "${REPO_ROOT}/src"
   ../.venv/bin/python wsgi.py
+
+If you run in server mode with the daemon:
+  1) Install wg-daemon systemd unit from wireguard-tools:
+     sudo cp "${TOOLS_REPO_ROOT}/contrib/wg-daemon.service" /etc/systemd/system/
+  2) Install GUI service unit:
+     sudo cp "${REPO_ROOT}/contrib/wg_db.service" /etc/systemd/system/
+  3) Update ExecStart/User paths in both unit files for your environment.
+  4) Enable services:
+     sudo systemctl daemon-reload
+     sudo systemctl enable --now wg-daemon.service wg_db.service
 EOF
 }
 
@@ -107,6 +148,7 @@ main() {
   require_command git
   require_command python3
   set_repo_root
+  set_tools_repo_root
   install_node_deps
   install_python_deps
   build_frontend_css
